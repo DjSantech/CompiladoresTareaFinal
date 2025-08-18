@@ -1,0 +1,1 @@
+int tipos(){ int d=0xFF; int o=0o77; int b=0b1010; return d+o+b; }

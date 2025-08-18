@@ -1,0 +1,1 @@
+string longstr = "Línea con \t y \"comillas\" y barra \\";

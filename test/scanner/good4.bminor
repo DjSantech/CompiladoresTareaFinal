@@ -1,0 +1,1 @@
+char escapes(){ char nl='\n'; char hx='\x41'; char oc='\101'; return nl; }

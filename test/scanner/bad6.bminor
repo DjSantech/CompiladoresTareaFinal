@@ -1,0 +1,2 @@
+// caracter ilegal
+int x = 10 @ 2;
