@@ -12,10 +12,12 @@ class Lexer(sly.Lexer):
         IF, INTEGER, PRINT, RETURN, STRING, TRUE, VOID, WHILE,
 
         # Operadores compuestos
-        LE, GE, EQ, NE,
+        LT, LE, GT, GE, EQ, NE,       # Operadores relacionales
+        LAND, LOR,                    # Operadores lógicos
+        INC, DEC                      # Incremento / Decremento
 
         # Literales
-        ID, INT, FLOATVAL, CHARVAL, STRINGVAL
+        ID, CHAR_LITERAL, FLOAT_LITERAL, INTEGER_LITERAL, STRING_LITERAL
     }
     literals = '+-*/%^=()[]{}:;,<>'
 
@@ -32,9 +34,11 @@ class Lexer(sly.Lexer):
     def ignore_cppcomment(self, t):
         pass
     
-    @_(r'/\*(.|\n)*\*/')
-    def ignore_comment(self, t):
-        self.lineno += t.value.count('\n')
+    @_(r'/\*.*?\*/')
+    def COMMENT(self, t):
+    self.lineno += t.value.count('\n')
+    pass
+
     
     # Identificador y Palabras reservadas
     ID = r'[_a-zA-Z]\w*'
@@ -56,21 +60,27 @@ class Lexer(sly.Lexer):
     ID['void']     = VOID
     ID['while']    = WHILE
 
-    # Operadores de comparación
-    LE = r'<='
-    GE = r'>='
-    EQ = r'=='
-    NE = r'!='
+     # Reglas para operadores
+    LT   = r'<'
+    LE   = r'<='
+    GT   = r'>'
+    GE   = r'>='
+    EQ   = r'=='
+    NE   = r'!='
+    LAND = r'&&'
+    LOR  = r'\|\|'      # operador OR lógico (||)
+    INC  = r'\+\+'
+    DEC  = r'--'
 
     # Números flotantes
     @_(r'\d+\.\d+')
-    def FLOATVAL(self, t):
+    def FLOAT_LITERAL(self, t):
         t.value = float(t.value)
         return t
 
     # Números enteros
     @_(r'\d+')
-    def INT(self, t):
+    def INTEGER_LITERAL(self, t):
         try:
             t.value = int(t.value)
         except ValueError:
@@ -80,7 +90,7 @@ class Lexer(sly.Lexer):
 
     # Caracteres
     @_(r"'(\\.|[^\\'])'")
-    def CHARVAL(self, t):
+    def CHAR_LITERAL(self, t):
         val = t.value[1:-1]  # quitar comillas
         escapes = {
             'a': '\a', 'b': '\b', 'e': '\x1b', 'f': '\f',
@@ -104,7 +114,7 @@ class Lexer(sly.Lexer):
 
     # Cadenas de texto
     @_(r'"(\\.|[^\\"])*"')
-    def STRINGVAL(self, t):
+    def STRING_LITERAL(self, t):
         val = t.value[1:-1]  # quitar comillas
         escapes = {
             'a': '\a','b': '\b','e': '\x1b','f': '\f',
@@ -130,7 +140,7 @@ class Lexer(sly.Lexer):
 
     # Manejo de errores generales
     def error(self, t):
-        print(f"Line {self.lineno}: Bad character '{t.value[0]}'")
+        print(f"Line {self.lineno}: Caracter invalido = '{t.value[0]}'")
         self.index += 1
 
 

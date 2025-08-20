@@ -1,4 +1,0 @@
-/* comentario sin cierre (esto no lo detecta el regex y se tragará el resto),
-pero forzamos un símbolo raro al inicio siguiente: */
-int x = 0
-$ 

@@ -1,0 +1,4 @@
+// Caracteres y escapes válidos
+c1: char = 'a';
+c2: char = '\n';
+c3: char = '\x41'; // 'A'

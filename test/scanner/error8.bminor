@@ -1,0 +1,2 @@
+// Uso de palabra reservada como identificador
+while: integer = 5;

@@ -1,9 +1,0 @@
-int main() {
-  int a = 42;
-  float b = 3.14;
-  char c = 'x';
-  string s = "Hola\nMundo";
-  bool t = true, f = false;
-  if (a < 100 && b >= .5) { print(s); }
-  return 0;
-}

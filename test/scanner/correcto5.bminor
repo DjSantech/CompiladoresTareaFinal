@@ -1,0 +1,3 @@
+// Strings válidos
+s1: string = "Hola mundo";
+s2: string = "Linea1\nLinea2\tTabulado";

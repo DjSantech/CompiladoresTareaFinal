@@ -1,0 +1,5 @@
+// Literales float en varios formatos
+f1: float = 3.14;
+f2: float = 0.001;
+f3: float = 1.2e10;
+f4: float = -2.5E-3;

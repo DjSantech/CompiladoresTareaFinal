@@ -1,0 +1,9 @@
+concat: function void (a: string, b: string, c: string) = {
+    print a, " ", b, " ", c, "\n";
+}
+
+main: function void () = {
+    concat("La", "computadora", "funciona");
+    concat("Hola", "mundo", "programador");
+    concat("El", "código", "corre");
+}

@@ -1,0 +1,31 @@
+main: function void () = {
+    a: integer = 10;
+    b: integer = 20;
+
+    // Operadores aritméticos
+    c: integer = a + b;
+    d: integer = b - a;
+    e: integer = a * b;
+    f: integer = b / a;
+    g: integer = b % a;
+
+    // Operadores relacionales
+    if (a < b) {
+        print "a es menor que b\n";
+    }
+    if (b > a && b >= 20) {
+        print "b es mayor o igual a 20\n";
+    }
+    if (a <= 10 || b == 20) {
+        print "condición lógica válida\n";
+    }
+    if (a != b) {
+        print "a y b son distintos\n";
+    }
+
+    // Operadores de incremento/decremento
+    a++;
+    b--;
+
+    print "Resultados: ", c, d, e, f, g, "\n";
+}

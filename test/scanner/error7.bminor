@@ -1,0 +1,2 @@
+// Carácter inválido: demasiado largo
+c: char = 'ab';
