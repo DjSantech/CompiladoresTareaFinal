@@ -14,7 +14,7 @@ class Lexer(sly.Lexer):
         # Operadores compuestos
         LT, LE, GT, GE, EQ, NE,       # Operadores relacionales
         LAND, LOR,                    # Operadores lógicos
-        INC, DEC                      # Incremento / Decremento
+        INC, DEC,                     # Incremento / Decremento
 
         # Literales
         ID, CHAR_LITERAL, FLOAT_LITERAL, INTEGER_LITERAL, STRING_LITERAL
@@ -36,8 +36,8 @@ class Lexer(sly.Lexer):
     
     @_(r'/\*.*?\*/')
     def COMMENT(self, t):
-    self.lineno += t.value.count('\n')
-    pass
+        self.lineno += t.value.count('\n')
+        pass
 
     
     # Identificador y Palabras reservadas
@@ -61,17 +61,17 @@ class Lexer(sly.Lexer):
     ID['while']    = WHILE
 
      # Reglas para operadores
-    LT   = r'<'
     LE   = r'<='
-    GT   = r'>'
     GE   = r'>='
     EQ   = r'=='
     NE   = r'!='
     LAND = r'&&'
-    LOR  = r'\|\|'      # operador OR lógico (||)
+    LOR  = r'\|\|'      
     INC  = r'\+\+'
     DEC  = r'--'
-
+    LT   = r'<'
+    GT   = r'>'
+    
     # Números flotantes
     @_(r'\d+\.\d+')
     def FLOAT_LITERAL(self, t):
