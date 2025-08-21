@@ -1,0 +1,8 @@
+//  Conversión de monedas — símbolo de dólar inválido
+main: function void() {
+    oro: float = 15.5;
+    $precio: float = 200.0;   //  Identificador inválido
+    total: float = oro * $precio;
+    print("El total es: ");
+    print(total);
+}

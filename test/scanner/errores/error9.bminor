@@ -1,0 +1,11 @@
+//  Factorial — símbolo extraño no permitido
+main: function void() {
+    n: integer = 5;
+    resultado: integer = 1;
+    @valor = 0;                //  Caracter inválido '@' no pertenece al lenguaje
+    while (n > 0) {
+        resultado = resultado * n;
+        n = n - 1;
+    }
+    print(resultado);
+}

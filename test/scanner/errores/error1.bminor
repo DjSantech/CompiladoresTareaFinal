@@ -1,0 +1,7 @@
+//  Promedio — cadena sin cierre
+main: function void() {
+    x: integer = 5;
+    y: integer = 7;
+    msg: string = "Promedio:    //  Cadena sin cierre
+    print((x + y) / 2);
+}

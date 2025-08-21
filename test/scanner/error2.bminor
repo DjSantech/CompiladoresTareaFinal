@@ -1,3 +1,0 @@
-// String con salto de línea sin escape
-s: string = "Hola
-mundo";

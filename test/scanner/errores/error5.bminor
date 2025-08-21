@@ -1,0 +1,8 @@
+// Programa: calcular el área de un rectángulo
+main: function void() {
+    base: integer = 999999999999999999999999999999;   //  Entero fuera de rango
+    altura: integer = 5;
+    area: integer = base * altura;
+    print("El área es: ");
+    print(area);
+}

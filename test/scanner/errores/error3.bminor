@@ -1,0 +1,5 @@
+//  Carácter — Unicode no soportado en char
+main: function void() {
+    c: char = '\u1234';         // Secuencia Unicode no soportada en char
+    print(c);
+}

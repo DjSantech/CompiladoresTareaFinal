@@ -1,0 +1,5 @@
+//  Conversión — float mal formado (letra tras punto)
+main: function void() {
+    f: float = 12.s1;           //  Número float mal formado (12 . s ...)
+    print(f);
+}

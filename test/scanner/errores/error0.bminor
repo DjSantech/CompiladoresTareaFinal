@@ -1,0 +1,8 @@
+//  Multiplicación — uso de símbolo inválido '#'
+main: function void() {
+    a: integer = 4;
+    b: integer = 5;
+    resultado: integer = a # b;   //  Caracter inválido '#' no permitido
+    print("El resultado es: ");
+    print(resultado);
+}

@@ -1,0 +1,8 @@
+//  Comentario — bloque sin cierre
+main: function void() {
+    a: integer = 1;
+    /* comentario que
+       nunca se cierra         // Comentario de bloque sin cierre
+    a = a + 1;
+    print(a);
+}

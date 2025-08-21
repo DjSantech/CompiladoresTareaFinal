@@ -1,0 +1,9 @@
+//  Área rectángulo — salto de línea sin escape en string
+main: function void() {
+    base: integer = 3;
+    altura: integer = 4;
+    msg: string = "Área:
+rect";                     //  String con salto de línea sin escape
+    print(msg);
+    print(base * altura);
+}

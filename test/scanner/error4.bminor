@@ -1,2 +1,0 @@
-// Número float mal formado
-f: float = 12.e+;

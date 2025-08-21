@@ -1,0 +1,5 @@
+//  Carácter — demasiado largo
+main: function void() {
+    c: char = 'ab';             //  Carácter inválido: demasiado largo
+    print(c);
+}

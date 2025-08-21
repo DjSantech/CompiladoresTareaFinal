@@ -1,2 +1,0 @@
-// Secuencia Unicode no soportada en char
-c: char = '\u1234';
