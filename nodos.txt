@@ -1,0 +1,47 @@
+ChatGPT Plus
+
+Nodos de declaración:
+VarDecl: declaración de variable sin inicialización
+VarInit: declaración de variable con inicialización
+ConstDecl: declaración de constante
+ArrayDecl: declaración de arreglo sin valores
+ArrayInit: declaración de arreglo con valores iniciales
+FuncDecl: prototipo de función (sin cuerpo)
+FuncDef: definición de función (con cuerpo)
+
+Nodos de sentencias:
+Block: bloque de sentencias { … }
+If: sentencia condicional con then y opcional else
+For: bucle con init, cond y step
+Return: sentencia de retorno
+Print: sentencia de impresión
+ExprStmt: sentencia formada por una expresión seguida de ;
+
+Nodos de expresiones:
+Assign: asignación a un lvalue
+BinaryOp: operación binaria (+, -, *, /, %, ^, &&, ||, <, <=, >, >=, ==, !=)
+UnaryOp: operación unaria (-, !)
+PostfixOp: operación posfija (++, --)
+Var: uso de una variable
+Literal: constante (entero, flotante, char, string, booleano)
+Call: llamada a función
+Index: acceso indexado a arreglo
+
+Nodos de tipos:
+TypeSimple: tipo base (integer, float, boolean, char, string, void)
+TypeArray: tipo de arreglo no dimensionado (array[] T)
+TypeArraySized: tipo de arreglo con tamaño (array[n] T)
+TypeFunc: tipo de función (retorno y parámetros)
+
+Otros nodos de soporte:
+Param: parámetro con nombre y tipo
+ParamList: lista de parámetros
+ExprList: lista de expresiones
+DeclList: lista de declaraciones
+StmtList: lista de sentencias
+Empty: nodo vacío opcional cuando aplique
+
+
+
+Nota: el profe espera que el proximo jueves nosotros tengamos una lista de nodos mirar donde vamos a guardar informacion
+como si fuera parte de un nodo
