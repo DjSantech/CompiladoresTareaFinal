@@ -1,99 +1,129 @@
-import argparse                # Parseo de argumentos de línea de comandos (CLI)
-import sys                     # Salida/terminación del programa y acceso a argv
-import os                      # Operaciones de sistema de archivos (paths, listado de directorios)
+# bminor.py
+import argparse
+import sys
+import os
+import json
 
-import lexer                   # Tu módulo lexer.py: expone la función tokenize(txt)
+# Tu lexer
+import lexer
+
+# -> IMPORTANTE: este import asume que tu parser completo está en parser.py
+#    Si en cambio usas el archivo que te pasé (parser_filled_commented.py),
+#    cambia la siguiente línea por:
+#    from parser_filled_commented import Parser
+from parser import Parser
+
+# Manejo centralizado de errores
+from errors import clear_errors, errors_detected
 
 
 # -------------------------------
-# Función para escanear un archivo con el lexer (fase de "scan")
+# Escaneo (lexer)
 # -------------------------------
 def scan(filename):
     print(f" Escaneando archivo: {filename}")
-
-    # Validación: el archivo debe existir antes de abrirlo
     if not os.path.exists(filename):
         print(f"Error: el archivo {filename} no existe")
-        sys.exit(1)            # Termina el proceso con código de error
+        sys.exit(1)
 
-    # Lee todo el archivo fuente en memoria (UTF-8)
     with open(filename, encoding="utf-8") as f:
         data = f.read()
-    
+
     try:
-        # Invoca la función pública del lexer para tokenizar e imprimir tabla
         lexer.tokenize(data)
     except Exception as e:
-        # Cualquier excepción no controlada se captura y se informa
         print(f"Error durante el escaneo: {e}")
-        sys.exit(1)            # Finaliza con error (útil para pipelines/CI)
+        sys.exit(1)
 
 
 # -------------------------------
-# Función que representa el análisis sintáctico (placeholder)
-# Por ahora solo imprime acciones; en el futuro llamará a tu parser real.
+# Parseo (parser real)
 # -------------------------------
 def parse(filename, dot, png):
     print(f" Parseando archivo: {filename}")
+    if not os.path.exists(filename):
+        print(f"Error: el archivo {filename} no existe")
+        sys.exit(1)
 
-    # Flags opcionales para exportar gráficos del AST (cuando implementes el parser)
+    with open(filename, encoding="utf-8") as f:
+        src = f.read()
+
+    # Limpiamos contador de errores
+    clear_errors()
+
+    # Construimos lexer+parser y parseamos
+    lex = lexer.Lexer()
+    par = Parser()
+
+    try:
+        ast = par.parse(lex.tokenize(src))
+    except Exception as e:
+        print(f"Error durante el parseo: {e}")
+        sys.exit(1)
+
+    # ¿Hubo errores reportados por errors.error(...)?
+    if errors_detected():
+        print(" ❌ Errores gramaticales detectados.")
+        # Si quieres terminar con error para CI/pipelines:
+        # sys.exit(1)
+    else:
+        print(" ✅ Sin errores gramaticales.")
+        # (Opcional) imprime el AST en JSON para debug:
+        # from model import Node
+        # def ast_to_dict(node):
+        #     if isinstance(node, list):
+        #         return [ast_to_dict(n) for n in node]
+        #     elif hasattr(node, "__dict__"):
+        #         return {k: ast_to_dict(v) for k, v in node.__dict__.items()}
+        #     else:
+        #         return node
+        # print(json.dumps(ast_to_dict(ast), ensure_ascii=False, indent=2))
+
+    # Placeholders para exportar gráficos si luego los implementas
     if dot:
-        print(" Generando archivo .dot")
+        print(" (TODO) Generar .dot")
     if png:
-        print(" Generando archivo .png")
+        print(" (TODO) Generar .png")
 
 
 # -------------------------------
-# Función que representa el chequeo semántico (placeholder)
-# En el futuro debería recorrer el AST y validar tipos/alcances.
+# Chequeo semántico (placeholder)
 # -------------------------------
 def check(filename, sym):
     print(f" Chequeando archivo: {filename}")
-
-    # Flag para mostrar una tabla de símbolos (cuando esté implementada)
     if sym:
-        print(" Mostrando tabla de símbolos")
+        print(" (TODO) Mostrar tabla de símbolos")
 
 
 # -------------------------------
-# Función que representa la generación de código (placeholder)
-# En el futuro debería emitir código intermedio/objetivo.
+# Generación de código (placeholder)
 # -------------------------------
 def codegen(filename):
     print(f" Generando código para: {filename}")
 
 
 # -------------------------------
-# Utilidad: procesa un path que puede ser archivo único o carpeta.
-# Si es carpeta, aplica el comando a TODOS los .bminor dentro (no recursivo).
+# Procesa archivo o carpeta (no recursivo)
 # -------------------------------
 def process_path(command, path, **kwargs):
-    # Si el path es una carpeta...
     if os.path.isdir(path):
-        for file in os.listdir(path):                         # Itera archivos del directorio
-            if file.endswith(".bminor"):                      # Solo fuentes del lenguaje
+        for file in os.listdir(path):
+            if file.endswith(".bminor"):
                 filepath = os.path.join(path, file)
                 print(f"\n Encontrado archivo: {filepath}")
-
-                # Despacha al subcomando correspondiente
                 if command == "scan":
                     scan(filepath)
                 elif command == "parse":
-                    parse(filepath,
-                          kwargs.get("dot", False),
-                          kwargs.get("png", False))
+                    parse(filepath, kwargs.get("dot", False), kwargs.get("png", False))
                 elif command == "check":
                     check(filepath, kwargs.get("sym", False))
                 elif command == "codegen":
                     codegen(filepath)
     else:
-        # Si es archivo único, simplemente reenvía al subcomando
         if command == "scan":
             scan(path)
         elif command == "parse":
-            parse(path,
-                  kwargs.get("dot", False),
-                  kwargs.get("png", False))
+            parse(path, kwargs.get("dot", False), kwargs.get("png", False))
         elif command == "check":
             check(path, kwargs.get("sym", False))
         elif command == "codegen":
@@ -101,55 +131,37 @@ def process_path(command, path, **kwargs):
 
 
 # -------------------------------
-# Punto de entrada principal: define CLI con subcomandos
+# CLI
 # -------------------------------
 def main():
-    # Descripción principal del programa
     parser = argparse.ArgumentParser(description="Compilador bminor")
-    # Crea contenedor de subcomandos (scan/parse/check/codegen)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # ----- Subcomando: scan -----
-    # Escanea un archivo o todos los .bminor de una carpeta
-    scan_parser = subparsers.add_parser("scan",
-                                        help="Escanea el archivo fuente o todos los de una carpeta")
+    scan_parser = subparsers.add_parser("scan", help="Escanea el archivo fuente o todos los de una carpeta")
     scan_parser.add_argument("file", help="Archivo o carpeta .bminor")
 
-    # ----- Subcomando: parse -----
-    # Parseo del archivo (placeholder) + flags de exportación gráfica
-    parse_parser = subparsers.add_parser("parse",
-                                         help="Parsea el archivo fuente")
+    parse_parser = subparsers.add_parser("parse", help="Parsea el archivo fuente")
     parse_parser.add_argument("file", help="Archivo o carpeta .bminor")
     parse_parser.add_argument("--dot", action="store_true", help="Generar .dot")
     parse_parser.add_argument("--png", action="store_true", help="Generar .png")
 
-    # ----- Subcomando: check -----
-    # Chequeo semántico (placeholder) + flag para mostrar la tabla de símbolos
-    check_parser = subparsers.add_parser("check",
-                                         help="Chequea el archivo fuente")
+    check_parser = subparsers.add_parser("check", help="Chequea el archivo fuente")
     check_parser.add_argument("file", help="Archivo o carpeta .bminor")
     check_parser.add_argument("--sym", action="store_true", help="Mostrar tabla de símbolos")
 
-    # ----- Subcomando: codegen -----
-    # Generación de código (placeholder)
-    codegen_parser = subparsers.add_parser("codegen",
-                                           help="Genera código")
+    codegen_parser = subparsers.add_parser("codegen", help="Genera código")
     codegen_parser.add_argument("file", help="Archivo o carpeta .bminor")
 
-    # Parsea los argumentos de la CLI provistos por el usuario
     args = parser.parse_args()
 
-    # Llama a process_path con los flags relevantes para cada subcomando.
-    # getattr(...) devuelve False si el atributo no existe (p. ej., 'dot' no existe en 'scan').
     process_path(
         args.command,
         args.file,
         dot=getattr(args, "dot", False),
         png=getattr(args, "png", False),
-        sym=getattr(args, "sym", False)
+        sym=getattr(args, "sym", False),
     )
 
 
-# Ejecuta main() solo si el archivo se ejecuta directamente (no cuando se importa como módulo)
 if __name__ == "__main__":
     main()

@@ -1,0 +1,63 @@
+Analisis sintatico
+
+1.Enfoque descendente
+-Analizador descendente recursivo 
+-Analizador gramaticas predictivas: LL(k)
++ Eliminar recursividad 
++ Factorizacion por la izquierda
+
+Enfoque ascendete uno de estos esta implementado en (sly) 
+-LR (k): LR()/SLR/LR(1)/LALR(1)
+
+GLC = {T,NT, S, R}
+
+Gramatica para reconocer expresiones aritmeticas (EBNF)
+
+expression: ("+"|"-")? term ((["+"|"-"]) term)*
+
+? opcionalidad
+* Repeticion 0 o mas
++     //     1 o mas
+() agrupacion
+
+cualquier cosa que este entre corchetes es opcionalidad
+
+las reglas son pares ordenados
+
+expression: ("+"|"-")? term ((["+"|"-"]) term)*
+
+|   izq   | |             Derecha             |
+
+term: factor {("*"|"/" factor)}
+
+factor: number | "i" expression "j"
+
+number: digito {digito}
+
+digito: {0-9}
+
+T = {"+", -, *, /, (, ), 0, 1, 2, .... 9}
+
+NT = {expression, term, factor, number, digit }
+
+
+
+implementacion de java
+pag 38  55
+profundizar los temas que vimos hoy
+
+
+
+
+
+AFD automata finita determinista para LR (O) L= La entrada la debo de leer de izquierda a Derecha
+                                             R= Sustituir expresiones mas a la right
+                                             0= leer 0 caracteres por adelantado
+
+S prima : s
+s : V = E
+s : E
+s : V
+s : X
+s : *E
+
