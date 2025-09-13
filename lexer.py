@@ -10,7 +10,7 @@ class Lexer(sly.Lexer):           # El lexer hereda de sly.Lexer
     tokens = {                    # Conjunto de tipos de tokens simbólicos que producirá el lexer
         # Palabras Reservadas
         ARRAY, AUTO, BOOLEAN, CHAR, ELSE, FALSE, FLOAT, FOR, FUNCTION,
-        IF, INTEGER, PRINT, RETURN, STRING, TRUE, VOID, WHILE, DO, DOwhi
+        IF, INTEGER, PRINT, RETURN, STRING, TRUE, VOID, WHILE, DO,
 
         # Operadores compuestos
         LT, LE, GT, GE, EQ, NE,   # Relacionales: < <= > >= == !=

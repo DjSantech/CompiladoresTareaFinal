@@ -1,27 +1,22 @@
-# test_parser.py
-# ------------------------------------------------------------
-# Prueba integral del parser + AST.pretty() con rich.Tree
-# Incluye: while, do-while, for, if/else, ++x, --x, arrays, print, return
-# ------------------------------------------------------------
 from rich.console import Console
 from rich.panel import Panel
-from rich.pretty import Pretty
-from parser import parse  # usa tu parse(txt) que ya construye el AST
+from parser import parse
 
 console = Console()
 
 program = r"""
-# Declaraciones varias
+// Declaraciones varias
 x    : integer = 0;
 y    : integer = 10;
+i    : integer = 0;
 sum  : integer;
 arr  : array[3] integer = { 1, 2, 3 };
 
-# Función principal sin parámetros que retorna integer
+// Función principal sin parámetros que retorna integer
 main : function integer() = {
     print("inicio", x, y);
 
-    # WHILE con ++x y if/else
+    // WHILE con ++x y if/else
     while (x < y) {
         ++x;
         if (x % 2 == 0) {
@@ -32,20 +27,20 @@ main : function integer() = {
         arr[0] = arr[0] + x;
     }
 
-    # DO-WHILE con --y
+    // DO-WHILE con --y
     do {
         --y;
         print("y--", y);
     } while (y > 5);
 
-    # FOR con pre-incremento en el step
+    // FOR con pre-incremento en el step
     for (i = 0; i < 3; ++i) {
         sum = sum + arr[i];
     }
 
     print("resultado sum:", sum);
     return sum;
-};
+}
 """
 
 def main():

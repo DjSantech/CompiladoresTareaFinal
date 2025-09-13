@@ -18,6 +18,26 @@ class Node:
     def accept(self, v: Visitor, *args, **kwargs):
         return v.visit(self, *args, **kwargs)
 
+    def pretty(self, label=None):
+        from rich.tree import Tree
+        label = label or self.__class__.__name__
+        tree = Tree(label)
+        for field, value in self.__dict__.items():
+            if field == "lineno":
+                continue
+            if isinstance(value, Node):
+                tree.add(value.pretty(f"{field}: {value.__class__.__name__}"))
+            elif isinstance(value, list):
+                sub = tree.add(f"{field}[]")
+                for v in value:
+                    if isinstance(v, Node):
+                        sub.add(v.pretty())
+                    else:
+                        sub.add(str(v))
+            else:
+                tree.add(f"{field}: {value}")
+        return tree
+
 @dataclass
 class Statement(Node):
     pass
@@ -85,7 +105,7 @@ class PostfixOper(Expression):
 @dataclass
 class Literal(Expression):
     value : Union[int, float, str, bool, None] = None
-    type  : str = None  # nombre legible del tipo
+    type  : str = None  
 
 @dataclass
 class Integer(Literal):
@@ -129,12 +149,12 @@ class Call(Expression):
 
 @dataclass
 class ArrayIndex(Expression):
-    array: Expression = None     # normalmente Identifier
+    array: Expression = None     
     index: Expression = None
 
 @dataclass
 class Assign(Expression):
-    target: Expression = None    # Identifier | ArrayIndex
+    target: Expression = None    
     value : Expression = None
 
 # =====================================================

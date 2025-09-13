@@ -2,19 +2,19 @@
 import argparse
 import sys
 import os
-import json
 
 # Tu lexer
 import lexer
 
-# -> IMPORTANTE: este import asume que tu parser completo está en parser.py
-#    Si en cambio usas el archivo que te pasé (parser_filled_commented.py),
-#    cambia la siguiente línea por:
-#    from parser_filled_commented import Parser
+# Parser real (asegúrate de que dentro de parser.py importes: from model import *)
 from parser import Parser
 
 # Manejo centralizado de errores
 from errors import clear_errors, errors_detected
+
+# (para --ast)
+from rich.console import Console
+_console = Console()
 
 
 # -------------------------------
@@ -30,6 +30,7 @@ def scan(filename):
         data = f.read()
 
     try:
+        # usa la función auxiliar de tu lexer que imprime tabla con tabulate
         lexer.tokenize(data)
     except Exception as e:
         print(f"Error durante el escaneo: {e}")
@@ -39,24 +40,24 @@ def scan(filename):
 # -------------------------------
 # Parseo (parser real)
 # -------------------------------
-def parse(filename, dot, png):
+def parse_file(filename, dot=False, png=False, ast_flag=False):
     print(f" Parseando archivo: {filename}")
     if not os.path.exists(filename):
         print(f"Error: el archivo {filename} no existe")
         sys.exit(1)
 
-    with open(filename, encoding="utf-8") as f:
-        src = f.read()
+    src = open(filename, encoding="utf-8").read()
 
-    # Limpiamos contador de errores
+    # 1) Tokenizamos a una LISTA (para evitar consumir el generador sin querer)
+    tok_lex = lexer.Lexer()
+    tokens = list(tok_lex.tokenize(src))
+    # print(f"[debug] tokens: {len(tokens)}")  # <- descomenta si quieres ver el conteo
+
+    # 2) Parseamos sobre ese iterador de tokens
     clear_errors()
-
-    # Construimos lexer+parser y parseamos
-    lex = lexer.Lexer()
     par = Parser()
-
     try:
-        ast = par.parse(lex.tokenize(src))
+        ast = par.parse(iter(tokens))
     except Exception as e:
         print(f"Error durante el parseo: {e}")
         sys.exit(1)
@@ -64,20 +65,19 @@ def parse(filename, dot, png):
     # ¿Hubo errores reportados por errors.error(...)?
     if errors_detected():
         print(" ❌ Errores gramaticales detectados.")
-        # Si quieres terminar con error para CI/pipelines:
-        # sys.exit(1)
+        # sys.exit(1)  # descomenta si quieres fallar duro en CI
     else:
         print(" ✅ Sin errores gramaticales.")
-        # (Opcional) imprime el AST en JSON para debug:
-        # from model import Node
-        # def ast_to_dict(node):
-        #     if isinstance(node, list):
-        #         return [ast_to_dict(n) for n in node]
-        #     elif hasattr(node, "__dict__"):
-        #         return {k: ast_to_dict(v) for k, v in node.__dict__.items()}
-        #     else:
-        #         return node
-        # print(json.dumps(ast_to_dict(ast), ensure_ascii=False, indent=2))
+
+        # Mostrar AST con rich.Tree si lo piden
+        if ast_flag:
+            try:
+                _console.rule("[bold blue]AST (rich.Tree)[/bold blue]")
+                _console.print(ast.pretty())
+            except AttributeError:
+                print("⚠️  ast.pretty() no está disponible. "
+                      "Asegúrate de haber añadido pretty() en Node (model.py) "
+                      "y de que parser.py importe 'from model import *'.")
 
     # Placeholders para exportar gráficos si luego los implementas
     if dot:
@@ -106,24 +106,39 @@ def codegen(filename):
 # Procesa archivo o carpeta (no recursivo)
 # -------------------------------
 def process_path(command, path, **kwargs):
+    def is_source(name: str) -> bool:
+        return name.endswith(".bminor") or name.endswith(".bm")
+
     if os.path.isdir(path):
         for file in os.listdir(path):
-            if file.endswith(".bminor"):
+            if is_source(file):
                 filepath = os.path.join(path, file)
                 print(f"\n Encontrado archivo: {filepath}")
                 if command == "scan":
                     scan(filepath)
                 elif command == "parse":
-                    parse(filepath, kwargs.get("dot", False), kwargs.get("png", False))
+                    parse_file(
+                        filepath,
+                        dot=kwargs.get("dot", False),
+                        png=kwargs.get("png", False),
+                        ast_flag=kwargs.get("ast", False),
+                    )
                 elif command == "check":
                     check(filepath, kwargs.get("sym", False))
                 elif command == "codegen":
                     codegen(filepath)
     else:
+        if not is_source(path):
+            print("Advertencia: la ruta no parece .bm/.bminor; se intentará igual.")
         if command == "scan":
             scan(path)
         elif command == "parse":
-            parse(path, kwargs.get("dot", False), kwargs.get("png", False))
+            parse_file(
+                path,
+                dot=kwargs.get("dot", False),
+                png=kwargs.get("png", False),
+                ast_flag=kwargs.get("ast", False),
+            )
         elif command == "check":
             check(path, kwargs.get("sym", False))
         elif command == "codegen":
@@ -138,19 +153,20 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     scan_parser = subparsers.add_parser("scan", help="Escanea el archivo fuente o todos los de una carpeta")
-    scan_parser.add_argument("file", help="Archivo o carpeta .bminor")
+    scan_parser.add_argument("file", help="Archivo o carpeta .bm/.bminor")
 
     parse_parser = subparsers.add_parser("parse", help="Parsea el archivo fuente")
-    parse_parser.add_argument("file", help="Archivo o carpeta .bminor")
+    parse_parser.add_argument("file", help="Archivo o carpeta .bm/.bminor")
     parse_parser.add_argument("--dot", action="store_true", help="Generar .dot")
     parse_parser.add_argument("--png", action="store_true", help="Generar .png")
+    parse_parser.add_argument("--ast", action="store_true", help="Imprimir AST con rich.Tree")
 
     check_parser = subparsers.add_parser("check", help="Chequea el archivo fuente")
-    check_parser.add_argument("file", help="Archivo o carpeta .bminor")
+    check_parser.add_argument("file", help="Archivo o carpeta .bm/.bminor")
     check_parser.add_argument("--sym", action="store_true", help="Mostrar tabla de símbolos")
 
     codegen_parser = subparsers.add_parser("codegen", help="Genera código")
-    codegen_parser.add_argument("file", help="Archivo o carpeta .bminor")
+    codegen_parser.add_argument("file", help="Archivo o carpeta .bm/.bminor")
 
     args = parser.parse_args()
 
@@ -159,6 +175,7 @@ def main():
         args.file,
         dot=getattr(args, "dot", False),
         png=getattr(args, "png", False),
+        ast=getattr(args, "ast", False),
         sym=getattr(args, "sym", False),
     )
 

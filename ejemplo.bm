@@ -1,0 +1,18 @@
+x    : integer = 0;
+y    : integer = 10;
+i    : integer = 0;
+sum  : integer;
+arr  : array[3] integer = { 1, 2, 3 };
+
+main : function integer() = {
+    print("inicio", x, y);
+    while (x < y) {
+        ++x;
+        if (x % 2 == 0) { print("par", x); } else { print("impar", x); }
+        arr[0] = arr[0] + x;
+    }
+    do { --y; print("y--", y); } while (y > 5);
+    for (i = 0; i < 3; ++i) { sum = sum + arr[i]; }
+    print("resultado sum:", sum);
+    return sum;
+}
