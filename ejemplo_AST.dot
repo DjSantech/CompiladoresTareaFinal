@@ -1,0 +1,187 @@
+digraph AST {
+	node [color=deepskyblue shape=box style=filled]
+	edge [arrowhead=none]
+	n00001 [label=Program]
+	n00002 [label="VarDecl\nx"]
+	n00003 [label="Type\ninteger"]
+	n00002 -> n00003 [label=type]
+	n00004 [label="0:integer"]
+	n00002 -> n00004 [label=init]
+	n00001 -> n00002
+	n00005 [label="VarDecl\ny"]
+	n00006 [label="Type\ninteger"]
+	n00005 -> n00006 [label=type]
+	n00007 [label="10:integer"]
+	n00005 -> n00007 [label=init]
+	n00001 -> n00005
+	n00008 [label="VarDecl\ni"]
+	n00009 [label="Type\ninteger"]
+	n00008 -> n00009 [label=type]
+	n00010 [label="0:integer"]
+	n00008 -> n00010 [label=init]
+	n00001 -> n00008
+	n00011 [label="VarDecl\nsum"]
+	n00012 [label="Type\ninteger"]
+	n00011 -> n00012 [label=type]
+	n00001 -> n00011
+	n00013 [label="VarDecl\narr"]
+	n00014 [label=ArrayType]
+	n00015 [label="Type\ninteger"]
+	n00014 -> n00015 [label=base]
+	n00016 [label=84]
+	n00014 -> n00016 [label=size]
+	n00013 -> n00014 [label=type]
+	n00017 [label=Call]
+	n00018 [label="Id(array_init)"]
+	n00017 -> n00018 [label=func]
+	n00019 [label=Args]
+	n00017 -> n00019
+	n00020 [label="1:integer"]
+	n00019 -> n00020
+	n00021 [label="2:integer"]
+	n00019 -> n00021
+	n00022 [label="3:integer"]
+	n00019 -> n00022
+	n00013 -> n00017 [label=init]
+	n00001 -> n00013
+	n00023 [label="VarDecl\nmain"]
+	n00024 [label=FuncType]
+	n00025 [label="Type\ninteger"]
+	n00024 -> n00025 [label=ret]
+	n00023 -> n00024 [label=type]
+	n00026 [label=Block]
+	n00027 [label=Print]
+	n00028 [label="inicio:string"]
+	n00027 -> n00028
+	n00029 [label="Id(x)"]
+	n00027 -> n00029
+	n00030 [label="Id(y)"]
+	n00027 -> n00030
+	n00026 -> n00027
+	n00031 [label=While]
+	n00032 [label="<" shape=circle]
+	n00033 [label="Id(x)"]
+	n00032 -> n00033
+	n00034 [label="Id(y)"]
+	n00032 -> n00034
+	n00031 -> n00032 [label=cond]
+	n00035 [label=Block]
+	n00036 [label="++(pre)" shape=circle]
+	n00037 [label="Id(x)"]
+	n00036 -> n00037
+	n00035 -> n00036
+	n00038 [label=If]
+	n00039 [label="==" shape=circle]
+	n00040 [label="%" shape=circle]
+	n00041 [label="Id(x)"]
+	n00040 -> n00041
+	n00042 [label="2:integer"]
+	n00040 -> n00042
+	n00039 -> n00040
+	n00043 [label="0:integer"]
+	n00039 -> n00043
+	n00038 -> n00039 [label=cond]
+	n00044 [label=Block]
+	n00045 [label=Print]
+	n00046 [label="par:string"]
+	n00045 -> n00046
+	n00047 [label="Id(x)"]
+	n00045 -> n00047
+	n00044 -> n00045
+	n00038 -> n00044 [label=then]
+	n00048 [label=Block]
+	n00049 [label=Print]
+	n00050 [label="impar:string"]
+	n00049 -> n00050
+	n00051 [label="Id(x)"]
+	n00049 -> n00051
+	n00048 -> n00049
+	n00038 -> n00048 [label=else]
+	n00035 -> n00038
+	n00052 [label="="]
+	n00053 [label="[]" shape=circle]
+	n00054 [label="Id(arr)"]
+	n00053 -> n00054 [label=array]
+	n00055 [label=288]
+	n00053 -> n00055 [label=index]
+	n00052 -> n00053 [label=target]
+	n00056 [label="+" shape=circle]
+	n00057 [label="[]" shape=circle]
+	n00058 [label="Id(arr)"]
+	n00057 -> n00058 [label=array]
+	n00059 [label=297]
+	n00057 -> n00059 [label=index]
+	n00056 -> n00057
+	n00060 [label="Id(x)"]
+	n00056 -> n00060
+	n00052 -> n00056 [label=value]
+	n00035 -> n00052
+	n00031 -> n00035 [label=body]
+	n00026 -> n00031
+	n00061 [label=DoWhile]
+	n00062 [label=Block]
+	n00063 [label="--(pre)" shape=circle]
+	n00064 [label="Id(y)"]
+	n00063 -> n00064
+	n00062 -> n00063
+	n00065 [label=Print]
+	n00066 [label="y--:string"]
+	n00065 -> n00066
+	n00067 [label="Id(y)"]
+	n00065 -> n00067
+	n00062 -> n00065
+	n00061 -> n00062 [label=body]
+	n00068 [label=">" shape=circle]
+	n00069 [label="Id(y)"]
+	n00068 -> n00069
+	n00070 [label="5:integer"]
+	n00068 -> n00070
+	n00061 -> n00068 [label=cond]
+	n00026 -> n00061
+	n00071 [label=For]
+	n00072 [label="="]
+	n00073 [label="Id(i)"]
+	n00072 -> n00073 [label=target]
+	n00074 [label="0:integer"]
+	n00072 -> n00074 [label=value]
+	n00071 -> n00072 [label=init]
+	n00075 [label="<" shape=circle]
+	n00076 [label="Id(i)"]
+	n00075 -> n00076
+	n00077 [label="3:integer"]
+	n00075 -> n00077
+	n00071 -> n00075 [label=cond]
+	n00078 [label="++(pre)" shape=circle]
+	n00079 [label="Id(i)"]
+	n00078 -> n00079
+	n00071 -> n00078 [label=step]
+	n00080 [label=Block]
+	n00081 [label="="]
+	n00082 [label="Id(sum)"]
+	n00081 -> n00082 [label=target]
+	n00083 [label="+" shape=circle]
+	n00084 [label="Id(sum)"]
+	n00083 -> n00084
+	n00085 [label="[]" shape=circle]
+	n00086 [label="Id(arr)"]
+	n00085 -> n00086 [label=array]
+	n00087 [label=405]
+	n00085 -> n00087 [label=index]
+	n00083 -> n00085
+	n00081 -> n00083 [label=value]
+	n00080 -> n00081
+	n00071 -> n00080 [label=body]
+	n00026 -> n00071
+	n00088 [label=Print]
+	n00089 [label="resultado sum::string"]
+	n00088 -> n00089
+	n00090 [label="Id(sum)"]
+	n00088 -> n00090
+	n00026 -> n00088
+	n00091 [label=Return]
+	n00092 [label="Id(sum)"]
+	n00091 -> n00092
+	n00026 -> n00091
+	n00023 -> n00026 [label=init]
+	n00001 -> n00023
+}

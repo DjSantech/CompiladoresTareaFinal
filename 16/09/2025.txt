@@ -1,0 +1,14 @@
+Gramaticas LR (1) / LALR (1)
+
+S´ : S
+S : v = E
+S : E 
+E : v
+V : X
+V : * E
+Construir el AFD LR (0)
+- buscar evidencias para LR (0)
+- SLR. Calcular las siguientes
+2. Construir el AFD LR (1)
+- buscar evidencias para LR (1)
+3. Construir el AFD LALR(1)
