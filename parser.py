@@ -311,11 +311,11 @@ class Parser(sly.Parser):
     def group(self, p):
         return p.expr
 
-    @_("ID '(' opt_expr_list ')'")
+    @_("ID '(' opt_expr_list ')'")   # llamada a función
     def group(self, p):
         return _L(Call(func=Identifier(name=p.ID), args=p.opt_expr_list), p.lineno)
 
-    @_("ID index")
+    @_("ID index")                   # acceso a arreglo
     def group(self, p):
         return _L(ArrayIndex(array=Identifier(name=p.ID), index=p.index), p.lineno)
 
@@ -348,9 +348,12 @@ class Parser(sly.Parser):
         return _L(String(value=p.STRING_LITERAL), p.lineno)
 
     @_("TRUE")
+    def factor(self, p):
+        return _L(Boolean(value=True), p.lineno)
+
     @_("FALSE")
     def factor(self, p):
-        return _L(Boolean(value=(p[0] == 'true')), p.lineno)
+        return _L(Boolean(value=False), p.lineno)
 
     # ------------------------------------------------------------------
     # TIPOS

@@ -1,0 +1,21 @@
+digraph AST {
+	node [color=purple shape=ellipse style=filled]
+	edge [arrowhead=normal]
+	n00001 [label=Program]
+	n00002 [label="VarDecl\nx"]
+	n00003 [label="Type\ninteger"]
+	n00002 -> n00003 [label=type]
+	n00001 -> n00002
+	n00004 [label="VarDecl\nhpta"]
+	n00005 [label=FuncType]
+	n00006 [label="Type\nstring"]
+	n00005 -> n00006 [label=ret]
+	n00004 -> n00005 [label=type]
+	n00007 [label=Block]
+	n00008 [label=Return]
+	n00009 [label="Id(x)"]
+	n00008 -> n00009
+	n00007 -> n00008
+	n00004 -> n00007 [label=init]
+	n00001 -> n00004
+}

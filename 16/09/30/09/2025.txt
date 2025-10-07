@@ -1,0 +1,29 @@
+1. Program
+- Crear la tabla de simbol global env = Symtab ('global')
+- visitar todas las declaraciones
+    for declaraciones in n.body:
+        decl.accept (self, env)
+2. VarDecl
+- Si tiene asociado un valor (ej. X:integer = 4)
+                                            "valor"
+verificar que el tipo de la varibale sea compatible con valor asociado
+- Agregar la variabl a la tabla de simbol
+
+3. ArrayDecl ( ej.  xmoves : array [n] integer= {2,1,3,1,2,2,2,2,2,2,2,};)
+
+- si se especifico el tamaño del arreglo, verificar que sea entero
+- si tiene asociado un valor, verificar que sean del mismo tipo del arreglo (el # de datos = al tamaño del arreglo)
+- Agregar la varibale a la tabla de simbolos
+
+4. FuncDecl
+- Agregar la funcion a la tabla de simbol actual
+- Crear la tabla de simbol de la funcion env = Symbol (n.name, env)
+- Si se definieron parametros, Agregar a la tabla de simbol
+- visitar el cuerpo de la funcion ( si exite0)
+
+5.Assignment (loc, expr)
+-visitar expre
+
+
+
+que correspanda de uno a uno en cuanto tipo

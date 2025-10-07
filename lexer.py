@@ -20,7 +20,7 @@ class Lexer(sly.Lexer):           # El lexer hereda de sly.Lexer
         # Literales (tokens con valor asociado)
         ID, CHAR_LITERAL, FLOAT_LITERAL, INTEGER_LITERAL, STRING_LITERAL
     }
-    literals = '+-*/%^=()[]{}:;,<>'  # Caracteres sueltos que se devuelven como tokens tal cual
+    literals = '+-*/%^=()[]{}:;,<>' # Caracteres sueltos que se devuelven como tokens tal cual
 
     # Caracteres a ignorar globalmente (no generan tokens)
     ignore = ' \t\r'               # Espacio, tab y retorno de carro (CR). \n se maneja aparte

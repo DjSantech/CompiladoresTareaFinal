@@ -1,0 +1,131 @@
+digraph AST {
+	node [color=purple shape=ellipse style=filled]
+	edge [arrowhead=normal]
+	n00001 [label=Program]
+	n00002 [label="VarDecl\nmain"]
+	n00003 [label=FuncType]
+	n00004 [label="Type\nvoid"]
+	n00003 -> n00004 [label=ret]
+	n00002 -> n00003 [label=type]
+	n00005 [label=Block]
+	n00006 [label="VarDecl\nboard"]
+	n00007 [label=ArrayType]
+	n00008 [label="Type\ninteger"]
+	n00007 -> n00008 [label=base]
+	n00009 [label=2175]
+	n00007 -> n00009 [label=size]
+	n00006 -> n00007 [label=type]
+	n00005 -> n00006
+	n00010 [label="VarDecl\nxmoves"]
+	n00011 [label=ArrayType]
+	n00012 [label="Type\ninteger"]
+	n00011 -> n00012 [label=base]
+	n00013 [label=2209]
+	n00011 -> n00013 [label=size]
+	n00010 -> n00011 [label=type]
+	n00014 [label=Call]
+	n00015 [label="Id(array_init)"]
+	n00014 -> n00015 [label=func]
+	n00016 [label=Args]
+	n00014 -> n00016
+	n00017 [label="2:integer"]
+	n00016 -> n00017
+	n00018 [label="1:integer"]
+	n00016 -> n00018
+	n00019 [label="-" shape=circle]
+	n00020 [label="1:integer"]
+	n00019 -> n00020
+	n00016 -> n00019
+	n00021 [label="-" shape=circle]
+	n00022 [label="2:integer"]
+	n00021 -> n00022
+	n00016 -> n00021
+	n00023 [label="-" shape=circle]
+	n00024 [label="2:integer"]
+	n00023 -> n00024
+	n00016 -> n00023
+	n00025 [label="-" shape=circle]
+	n00026 [label="1:integer"]
+	n00025 -> n00026
+	n00016 -> n00025
+	n00027 [label="1:integer"]
+	n00016 -> n00027
+	n00028 [label="2:integer"]
+	n00016 -> n00028
+	n00010 -> n00014 [label=init]
+	n00005 -> n00010
+	n00029 [label="VarDecl\nymoves"]
+	n00030 [label=ArrayType]
+	n00031 [label="Type\ninteger"]
+	n00030 -> n00031 [label=base]
+	n00032 [label=2271]
+	n00030 -> n00032 [label=size]
+	n00029 -> n00030 [label=type]
+	n00033 [label=Call]
+	n00034 [label="Id(array_init)"]
+	n00033 -> n00034 [label=func]
+	n00035 [label=Args]
+	n00033 -> n00035
+	n00036 [label="1:integer"]
+	n00035 -> n00036
+	n00037 [label="2:integer"]
+	n00035 -> n00037
+	n00038 [label="2:integer"]
+	n00035 -> n00038
+	n00039 [label="1:integer"]
+	n00035 -> n00039
+	n00040 [label="-" shape=circle]
+	n00041 [label="1:integer"]
+	n00040 -> n00041
+	n00035 -> n00040
+	n00042 [label="-" shape=circle]
+	n00043 [label="2:integer"]
+	n00042 -> n00043
+	n00035 -> n00042
+	n00044 [label="-" shape=circle]
+	n00045 [label="2:integer"]
+	n00044 -> n00045
+	n00035 -> n00044
+	n00046 [label="-" shape=circle]
+	n00047 [label="1:integer"]
+	n00046 -> n00047
+	n00035 -> n00046
+	n00029 -> n00033 [label=init]
+	n00005 -> n00029
+	n00048 [label=If]
+	n00049 [label=Call]
+	n00050 [label="Id(walk)"]
+	n00049 -> n00050 [label=func]
+	n00051 [label=Args]
+	n00049 -> n00051
+	n00052 [label="0:integer"]
+	n00051 -> n00052
+	n00053 [label="0:integer"]
+	n00051 -> n00053
+	n00054 [label="1:integer"]
+	n00051 -> n00054
+	n00055 [label="Id(board)"]
+	n00051 -> n00055
+	n00056 [label="Id(xmoves)"]
+	n00051 -> n00056
+	n00057 [label="Id(ymoves)"]
+	n00051 -> n00057
+	n00048 -> n00049 [label=cond]
+	n00058 [label=Block]
+	n00059 [label=Print]
+	n00060 [label="Solución encontrada!
+:string"]
+	n00059 -> n00060
+	n00058 -> n00059
+	n00048 -> n00058 [label=then]
+	n00061 [label=Block]
+	n00062 [label=Print]
+	n00063 [label="No existe solución
+:string"]
+	n00062 -> n00063
+	n00061 -> n00062
+	n00048 -> n00061 [label=else]
+	n00005 -> n00048
+	n00002 -> n00005 [label=init]
+	n00001 -> n00002
+}
