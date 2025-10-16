@@ -1,12 +1,12 @@
 # checker.py — Análisis semántico para tu model.py
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict
 from errors  import error, errors_detected
 from model   import *           # Program, VarDecl, Assign, Identifier, BinOper, etc.
 from symtab  import Symtab
 from typesys import typenames, check_binop, check_unaryop
 
 # -------------------------------------------------------
-# Helpers de tipos
+# Helpers de tipos y utilidades
 # -------------------------------------------------------
 def resolve_type(t: Optional[Type]) -> Optional[str]:
     if t is None:
@@ -15,6 +15,7 @@ def resolve_type(t: Optional[Type]) -> Optional[str]:
         return t.name
     if isinstance(t, ArrayType):
         base = resolve_type(t.base)
+        # Nota: la semántica exige tamaño entero literal no-negativo; se valida aparte.
         size = None
         if isinstance(t.size, Integer):
             size = t.size.value
@@ -58,6 +59,7 @@ def py_value_type(val) -> Optional[str]:
         return "string" if len(val) != 1 else "char"
     return None
 
+
 # -------------------------------------------------------
 # Checker
 # -------------------------------------------------------
@@ -65,17 +67,59 @@ class Check(Visitor):
     @classmethod
     def run(cls, program: Program) -> Symtab:
         self = cls()
-        self._fun_ret_stack: List[Optional[str]] = []
+        self._fun_ret_stack: List[Optional[str]] = []     # pila de tipos de retorno esperados
+        self._fun_name_stack: List[str] = []              # pila de nombres de función
+        self._saw_return_stack: List[bool] = []           # si hubo return en función no-void
+        self._loop_depth: int = 0                         # para break/continue
+        # tracking de inicialización por scope (id(scope) -> {name: bool})
+        self._inits: Dict[int, Dict[str, bool]] = {}
+        self._lhs_mode: bool = False                      # true cuando visitamos el LHS de una asignación
         global_env = Symtab("global")
         program.accept(self, global_env)
         return global_env
+
+    # -------- inicialización tracking --------
+    def _init_map(self, env: Symtab) -> Dict[str, bool]:
+        m = self._inits.get(id(env))
+        if m is None:
+            m = {}
+            self._inits[id(env)] = m
+        return m
+
+    def _set_initialized(self, env: Symtab, name: str, value: bool = True):
+        # asigna en el scope donde está declarado el símbolo
+        decl_env = self._find_decl_env(env, name)
+        if decl_env is None:
+            # no declarado: el error ya lo reportará visit(Identifier)
+            return
+        self._init_map(decl_env)[name] = value
+
+    def _is_initialized(self, env: Symtab, name: str) -> Optional[bool]:
+        # busca hacia arriba
+        e = env
+        while e is not None:
+            m = self._inits.get(id(e))
+            if m and name in m:
+                return m[name]
+            e = getattr(e, "parent", None)
+        return None
+
+    def _find_decl_env(self, env: Symtab, name: str) -> Optional[Symtab]:
+        e = env
+        while e is not None:
+            try:
+                sym = e.table[name]  # asumiendo .table dict interno
+                return e
+            except Exception:
+                pass
+            e = getattr(e, "parent", None)
+        return None
 
     # -------- util: tipo de “algo que puede ser nodo o valor crudo” --------
     def _expr_type(self, x, env) -> Optional[str]:
         if isinstance(x, Node):
             x.accept(self, env)
             return getattr(x, "type", None)
-        # valor crudo del parser (int/float/str/bool)
         return py_value_type(x)
 
     # -------- Scopes --------
@@ -96,41 +140,96 @@ class Check(Visitor):
     def visit(self, n: VarDecl, env: Symtab):
         tname = resolve_type(n.type)
 
-        # Función declarada como VarDecl con tipo FuncType
+        # --- Declaración de función (VarDecl con FuncType)
         if isinstance(n.type, FuncType):
+            # Regla especial para main: retorno debe ser void
+            if n.name == "main":
+                ret = resolve_type(n.type.ret) if n.type.ret else "void"
+                if ret != "void":
+                    error("Tipo de retorno inválido para 'main' (debe ser void)", n.lineno)
+                # Si además quieres forzar 0 parámetros, descomenta:
+                # if n.type.params:
+                #     error("'main' no debe recibir parámetros", n.lineno)
+
+            # Debe tener cuerpo (Block) → error 23
+            if not isinstance(n.init, Block):
+                error(f"Falta cuerpo de función '{n.name}'", n.lineno)
+
+            # Registrar la función en el scope
             try:
                 env.add(n.name, n)
             except Exception as ex:
-                error(str(ex), n.lineno); return
+                error(str(ex), n.lineno)   # dup de nombre (var/func) → errores 1 ó 7
+                # aun así seguimos para intentar detectar más errores
 
+            # Scope de función
             fenv = self._scope(n.name, env)
 
+            # Parámetros (duplicados y tipos válidos)
+            seen_params = set()
             for p in n.type.params:
                 pname = p.name
                 ptype_name = resolve_type(p.type)
                 if not is_type(ptype_name, p.type):
                     error(f"Tipo inválido para parámetro '{pname}': {ptype_name}", p.lineno)
+                # En arrays en parámetros, típicamente sin tamaño
+                if isinstance(p.type, ArrayType) and p.type.size is not None:
+                    # puedes elegir si lo prohíbes (estilo C) o lo permites; aquí lo reportamos
+                    error(f"Parámetro arreglo '{pname}' no debe tener tamaño explícito", p.lineno)
+                # duplicado explícito (además del Symtab)
+                if pname in seen_params:
+                    error(f"Parámetro duplicado '{pname}'", p.lineno)
+                seen_params.add(pname)
+
                 try:
                     fenv.add(pname, p)
+                    # parámetros se consideran inicializados
+                    self._set_initialized(fenv, pname, True)
                 except Exception as ex:
                     error(str(ex), p.lineno)
 
-            self._fun_ret_stack.append(resolve_type(n.type.ret) if n.type.ret else 'void')
-            if n.init is not None:
+            # Empujar contexto de función
+            expected_ret = resolve_type(n.type.ret) if n.type.ret else 'void'
+            self._fun_ret_stack.append(expected_ret)
+            self._fun_name_stack.append(n.name)
+            self._saw_return_stack.append(False)
+
+            # Visitar cuerpo
+            if isinstance(n.init, Block):
                 n.init.accept(self, fenv)
-            self._fun_ret_stack.pop()
+
+            # Si no-void y no hubo return → error 22
+            saw_return = self._saw_return_stack.pop()
+            self._fun_name_stack.pop()
+            exp = self._fun_ret_stack.pop()
+            if exp != "void" and not saw_return:
+                error(f"La función '{n.name}' no retorna un valor (retorno {exp})", n.lineno)
             return
 
-        # Variable (incluye arrays)
+        # --- Declaración de variable o arreglo ---
+        # Tipo válido
         if not is_type(tname, n.type):
             error(f"Tipo inválido para variable '{n.name}': {tname}", n.lineno)
+
+        # Si es arreglo, validar tamaño (debe ser entero literal no-negativo)
+        if isinstance(n.type, ArrayType):
+            if n.type.size is not None:
+                if not isinstance(n.type.size, Integer) and not (isinstance(n.type.size, Literal) and isinstance(n.type.size.value, int)):
+                    error(f"Tamaño de array inválido para '{n.name}': debe ser entero literal", n.lineno)
+                else:
+                    size_val = n.type.size.value if isinstance(n.type.size, Literal) else None
+                    if size_val is not None and size_val < 0:
+                        error(f"Tamaño de array negativo en '{n.name}'", n.lineno)
+
+        # Insertar en el scope (duplicados → error 1)
         try:
             env.add(n.name, n)
         except Exception as ex:
             error(str(ex), n.lineno)
 
-        # Inicializador
+        # Inicialización
         if n.init is not None:
+            # Inicialización de arreglo: array_init(...)
             if isinstance(n.type, ArrayType) and isinstance(n.init, Call) and isinstance(n.init.func, Identifier) and n.init.func.name == "array_init":
                 base_expected = resolve_type(n.type.base)
 
@@ -151,14 +250,26 @@ class Check(Visitor):
                     error(f"Tamaño de inicialización incompatible para '{n.name}': {count} elementos, se esperaba {size_expected}", n.lineno)
 
                 n.init.type = tname  # "array[n] base"
+                # considerar el arreglo "inicializado"
+                self._set_initialized(env, n.name, True)
             else:
                 init_t = self._expr_type(n.init, env)
                 if init_t is not None and tname is not None and not types_equal(init_t, tname):
                     error(f"Incompatibilidad en inicialización de '{n.name}': {init_t} → {tname}", n.lineno)
+                # queda inicializada
+                self._set_initialized(env, n.name, True)
+        else:
+            # declarada pero no inicializada
+            self._set_initialized(env, n.name, False)
 
     # -------- Sentencias --------
     def visit(self, n: PrintStmt, env: Symtab):
         for a in n.args:
+            # Si es identificador y no está inicializado → error 20
+            if isinstance(a, Identifier):
+                init = self._is_initialized(env, a.name)
+                if init is False:
+                    error(f"Uso de variable antes de asignación: {a.name}", a.lineno)
             self._expr_type(a, env)
 
     def visit(self, n: ReturnStmt, env: Symtab):
@@ -173,6 +284,8 @@ class Check(Visitor):
             else:
                 if value_type != expected:
                     error(f"Tipo de return inválido: {value_type} → se esperaba {expected}", n.lineno)
+                # marcar que vimos un return con valor
+                self._saw_return_stack[-1] = True
 
     def visit(self, n: IfStmt, env: Symtab):
         if n.cond:
@@ -189,12 +302,16 @@ class Check(Visitor):
             ct = self._expr_type(n.cond, env)
             if ct != "boolean":
                 error("La condición del while debe ser boolean", n.lineno)
+        self._loop_depth += 1
         if n.body:
             n.body.accept(self, self._scope("while", env))
+        self._loop_depth -= 1
 
     def visit(self, n: DoWhileStmt, env: Symtab):
+        self._loop_depth += 1
         if n.body:
             n.body.accept(self, self._scope("do", env))
+        self._loop_depth -= 1
         if n.cond:
             ct = self._expr_type(n.cond, env)
             if ct != "boolean":
@@ -202,11 +319,13 @@ class Check(Visitor):
 
     def visit(self, n: ForStmt, env: Symtab):
         local = self._scope("for", env)
+        self._loop_depth += 1
         if n.init:
             if isinstance(n.init, Node):
+                # Si init es Assign y el LHS es un Identifier, marcar como inicializada
                 n.init.accept(self, local)
             else:
-                self._expr_type(n.init, local)  # por si el parser metiera crudos
+                self._expr_type(n.init, local)
         if n.cond:
             ct = self._expr_type(n.cond, local)
             if ct != "boolean":
@@ -218,6 +337,7 @@ class Check(Visitor):
                 self._expr_type(n.step, local)
         if n.body:
             n.body.accept(self, local)
+        self._loop_depth -= 1
 
     # -------- Expresiones --------
     def visit(self, n: Identifier, env: Symtab):
@@ -226,6 +346,8 @@ class Check(Visitor):
             error(f"Identificador no declarado: {n.name}", n.lineno)
             n.type = None
             return
+
+        # tipo
         if isinstance(decl, VarDecl):
             n.type = resolve_type(decl.type)
         elif isinstance(decl, Param):
@@ -233,18 +355,32 @@ class Check(Visitor):
         else:
             n.type = resolve_type(getattr(decl, 'type', None))
 
+        # uso antes de asignación (solo si es lectura; en LHS no debe disparar)
+        if not self._lhs_mode:
+            init = self._is_initialized(env, n.name)
+            if init is False:
+                error(f"Uso de variable antes de asignación: {n.name}", n.lineno)
+
     def visit(self, n: Assign, env: Symtab):
-        # LHS (debe ser nodo lvalue)
+        # LHS
+        self._lhs_mode = True
         if isinstance(n.target, Node):
             n.target.accept(self, env)
-            lhs_t = getattr(n.target, "type", None)
         else:
-            lhs_t = self._expr_type(n.target, env)  # fallback (no debería pasar)
-        # RHS (nodo o crudo)
+            self._expr_type(n.target, env)
+        self._lhs_mode = False
+
+        lhs_t = getattr(n.target, "type", None)
+        # RHS
         rhs_t = self._expr_type(n.value, env)
 
         if lhs_t is not None and rhs_t is not None and not types_equal(lhs_t, rhs_t):
             error(f"Tipos incompatibles en asignación: {lhs_t} = {rhs_t}", n.lineno)
+
+        # si el target es un identificador simple, queda inicializado
+        if isinstance(n.target, Identifier):
+            self._set_initialized(env, n.target.name, True)
+
         n.type = lhs_t or rhs_t
 
     def visit(self, n: BinOper, env: Symtab):
@@ -328,4 +464,19 @@ class Check(Visitor):
         n.type = resolve_type(fn_decl.type.ret) if fn_decl.type.ret else 'void'
 
     def visit(self, n: Literal, env: Symtab):
+        # Los literales ya llevan su 'type' configurado por el constructor.
         pass
+
+    # -------- Soporte opcional: Break/Continue fuera de bucle --------
+    # Si tus nodos existen en model.py como BreakStmt/ContinueStmt, estos
+    # visit serán usados. Si no existen, no pasará nada.
+    def visit(self, n: Node, env: Symtab):
+        # Fallback genérico para nodos sin método específico
+        cname = n.__class__.__name__
+        if cname == "BreakStmt":
+            if self._loop_depth <= 0:
+                error("break fuera de un bucle", getattr(n, "lineno", None))
+        elif cname == "ContinueStmt":
+            if self._loop_depth <= 0:
+                error("continue fuera de un bucle", getattr(n, "lineno", None))
+        # Para cualquier otro nodo desconocido, no hacemos nada.

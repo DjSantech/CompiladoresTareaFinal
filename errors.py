@@ -1,32 +1,101 @@
-# errors.py
-'''
-Gestión de errores del compilador.
+# errors.py — Reporte de errores con contexto en terminal
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import List, Optional
+from rich.console import Console
+from rich.markup import escape
 
-Una de las partes más importantes (y molestas) de escribir un compilador
-es la notificación fiable de mensajes de error al usuario. Este archivo
-debería consolidar algunas funciones básicas de gestión de errores en un solo lugar.
-Facilitar la notificación de errores. Facilitar la detección de errores.
+_console = Console()
 
-Podría ampliarse para que sea más potente posteriormente.
+# Estado global muy simple (compat con tu proyecto)
+_FILENAME: Optional[str] = None
+_LINES: List[str] = []
+_HAD_ERRORS: bool = False
 
-Variable global que indica si se ha producido algún error. El compilador puede 
-consultar esto posteriormente para decidir si debe detenerse.
-'''
-from rich import print
+@dataclass
+class Msg:
+    kind: str          # "Léxico" | "Sintáctico" | "Semántico" | ...
+    text: str
+    lineno: Optional[int] = None
+    col: Optional[int] = None
 
-_errors_detected = 0
+_MSGS: List[Msg] = []
 
-def error(message, lineno=None):
-	global _errors_detected
-	if lineno:
-		print(f'{lineno}: [red]{message}[/red]')
-	else:
-		print(f"[red]{message}[/red]")
-	_errors_detected += 1
-	
-def errors_detected():
-	return _errors_detected
-	
-def clear_errors():
-	global _errors_detected
-	_errors_detected = 0
+
+def set_source(filename: str, text: str) -> None:
+    """Debes llamarla antes de escanear/parsear para poder mostrar la línea con caret."""
+    global _FILENAME, _LINES
+    _FILENAME = filename
+    _LINES = text.splitlines()
+
+
+def clear_errors() -> None:
+    global _HAD_ERRORS, _MSGS
+    _HAD_ERRORS = False
+    _MSGS = []
+
+
+def errors_detected() -> bool:
+    return _HAD_ERRORS
+
+
+def _label_for(kind: str) -> str:
+    kind_low = kind.lower()
+    if "léx" in kind_low:       # Léxico
+        return "[bold magenta]Léxico[/]"
+    if "sint" in kind_low:      # Sintáctico
+        return "[bold yellow]Sintáctico[/]"
+    if "sem" in kind_low:       # Semántico
+        return "[bold red]Semántico[/]"
+    return f"[bold]{escape(kind)}[/]"
+
+
+def error(text: str, lineno: Optional[int] = None, col: Optional[int] = None, kind: str = "Error") -> None:
+    """Registra e imprime un error con color y contexto."""
+    global _HAD_ERRORS
+    _HAD_ERRORS = True
+    m = Msg(kind=kind, text=text, lineno=lineno, col=col)
+    _MSGS.append(m)
+
+    # Encabezado con tipo
+    head = _label_for(kind)
+    # Localización
+    where = ""
+    if _FILENAME is not None and lineno is not None:
+        where = f"{_FILENAME}:{lineno}"
+    elif lineno is not None:
+        where = f"línea {lineno}"
+
+    # Imprime
+    _console.print(f"{head}: {escape(text)}")
+    if where:
+        _console.print(f"  [dim]{escape(where)}[/]")
+
+    # Línea de código + caret si hay info
+    if lineno is not None and 1 <= lineno <= len(_LINES):
+        line = _LINES[lineno - 1]
+        _console.print(f"    {escape(line)}")
+        if col and col > 0:
+            spaces = " " * (col + 3)  # 3 por la sangría "    "
+            _console.print(f"{spaces}^", style="bold red")
+
+
+def warn(text: str, lineno: Optional[int] = None, col: Optional[int] = None, kind: str = "Advertencia") -> None:
+    """Advertencias con color tenue."""
+    m = Msg(kind=kind, text=text, lineno=lineno, col=col)
+    _MSGS.append(m)
+    head = "[bold blue]Aviso[/]"
+    where = ""
+    if _FILENAME is not None and lineno is not None:
+        where = f"{_FILENAME}:{lineno}"
+    elif lineno is not None:
+        where = f"línea {lineno}"
+    _console.print(f"{head}: {escape(text)}")
+    if where:
+        _console.print(f"  [dim]{escape(where)}[/]")
+
+
+def dump_errors() -> None:
+    """Por si quieres al final reimprimir/resumir (opcional)."""
+    if not _MSGS:
+        _console.print("[green]No se registraron errores[/]")

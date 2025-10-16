@@ -22,10 +22,19 @@ class Node:
         from rich.tree import Tree
         label = label or self.__class__.__name__
         tree = Tree(label)
+
         for field, value in self.__dict__.items():
             if field == "lineno":
                 continue
+
+            # 1) Mostrar tipos simples en una sola línea: "type: integer"
+            if isinstance(value, SimpleType):
+                tree.add(f"{field}: {value.name}")
+                continue
+
+            # 2) Resto de casos (igual que antes)
             if isinstance(value, Node):
+                # mantiene la etiqueta del campo y el nombre de la clase del hijo
                 tree.add(value.pretty(f"{field}: {value.__class__.__name__}"))
             elif isinstance(value, list):
                 sub = tree.add(f"{field}[]")
@@ -36,7 +45,9 @@ class Node:
                         sub.add(str(v))
             else:
                 tree.add(f"{field}: {value}")
+
         return tree
+
 
 @dataclass
 class Statement(Node):
@@ -161,10 +172,75 @@ class Assign(Expression):
 # Sentencias
 # =====================================================
 @dataclass
+@dataclass
 class VarDecl(Statement):
     name: str = ""
     type: Type = None
     init: Optional[Expression] = None
+
+    # Pretty especial: si es función (FuncType) imprimir como FuncDecl(...)
+    def pretty(self, label=None):
+        from rich.tree import Tree
+
+        # Helper para imprimir nombres de tipos simples
+        def _type_name(t: Optional[Type]) -> str:
+            if t is None:
+                return "void"
+            if isinstance(t, SimpleType):
+                return t.name
+            return t.__class__.__name__
+
+        # Helper para imprimir un parámetro como VarParm / ArrayParm
+        def _param_tree(p: "Param") -> Tree:
+            if isinstance(p.type, ArrayType):
+                base = _type_name(p.type.base)
+                t = Tree("ArrayParm")
+                t.add(f"name: {p.name}")
+                t.add(f"type: {base}")
+                # El profe pone None cuando es array [] (sin tamaño literal)
+                if p.type.size is None:
+                    t.add("size: None")
+                else:
+                    # Si quieres ser más sofisticado, podrías resolver índices; aquí lo mostramos como subárbol/expr
+                    sz = Tree("size")
+                    if isinstance(p.type.size, Node):
+                        sz.add(p.type.size.pretty())
+                    else:
+                        sz.add(str(p.type.size))
+                    t.add(sz)
+                return t
+            else:
+                t = Tree("VarParm")
+                t.add(f"name: {p.name}")
+                t.add(f"type: {_type_name(p.type)}")
+                return t
+
+        # Si NO es función, delega al pretty genérico de Node (VarDecl normal)
+        if not isinstance(self.type, FuncType):
+            # Usa el pretty base (que ya imprime type, init, etc.)
+            return Node.pretty(self, label or self.__class__.__name__)
+
+        # ---- Es función: imprime como FuncDecl
+        root = Tree("FuncDecl")
+        root.add(f"name: {self.name}")
+        root.add(f"type: {_type_name(self.type.ret)}")  # tipo de retorno
+
+        # parms[]
+        parms_node = Tree("parms[]")
+        for p in (self.type.params or []):
+            parms_node.add(_param_tree(p))
+        root.add(parms_node)
+
+        # body: esperamos un Block en init
+        body_node = Tree("body")
+        if isinstance(self.init, Block):
+            body_node.add(self.init.pretty())
+        else:
+            # Si no hay bloque, muestra lista vacía (como en el estilo del profe)
+            body_node.add("[]")
+        root.add(body_node)
+
+        return root
 
 @dataclass
 class PrintStmt(Statement):

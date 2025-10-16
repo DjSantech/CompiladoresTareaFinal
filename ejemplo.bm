@@ -1,18 +1,54 @@
-x    : integer = 0;
-y    : integer = 10;
-i    : integer = 0;
-sum  : integer;
-arr  : array[3] integer = { 1, 2, 3 };
+// ❌ Error 8: Parámetro duplicado
+abs_value: function integer (x: integer, x: integer) = {
 
-main : function integer() = {
-    print("inicio", x, y);
-    while (x < y) {
-        ++x;
-        if (x % 2 == 0) { print("par", x); } else { print("impar", x); }
-        arr[0] = arr[0] + x;
+    // ❌ Error 9: Variable declarada dos veces dentro del mismo bloque
+    y: integer;
+    y: integer;
+
+    // ❌ Error 10: Variable usada antes de ser declarada
+    z = 5;
+
+    // ❌ Error 11: Asignación tipo incompatible
+    y = false;
+
+    // ❌ Error 12: Break fuera de un bucle
+    break;
+
+    // ❌ Error 13: Continue fuera de un bucle
+    continue;
+
+    // ❌ Error 14: Comparación entre tipos incompatibles
+    if (x == false) {
+        y = -x;
+    } else {
+        y = x;
     }
-    do { --y; print("y--", y); } while (y > 5);
-    for (i = 0; i < 3; ++i) { sum = sum + arr[i]; }
-    print("resultado sum:", sum);
-    return sum;
+
+    // ❌ Error 15: Retorno tipo incompatible (función retorna integer)
+    return true;
 }
+
+
+/* ==========================================================
+ *  Función principal incorrecta
+ * ========================================================== */
+
+// ❌ Error 16: Tipo de retorno inválido para main (debe ser void)
+main: function integer (p: integer) = {
+
+    // ❌ Error 17: Variable no declarada
+    result = abs_value(a);
+
+    // ❌ Error 18: Función llamada con tipo de argumento incorrecto
+    result = abs_value(true);
+
+    // ❌ Error 19: Llamada a función inexistente
+    x = desconocida(1);
+
+    // ❌ Error 20: Uso de variable antes de asignación
+    print result;
+
+    // ❌ Error 21: Return con tipo incorrecto (main debería ser void)
+    return 0;
+}
+

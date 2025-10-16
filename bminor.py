@@ -17,14 +17,15 @@ except Exception as e:
     sys.exit(1)
 
 # Errores
-from errors import clear_errors, errors_detected
+
+from errors import clear_errors, errors_detected, set_source
 
 # (para --ast en parse)
 from rich.console import Console
 _console = Console()
 
-# Graphviz (impresión de AST)
-from astprint import ASTPrinter
+# Graphviz + formateadores de AST
+from astprint import ASTPrinter, print_prof, print_rich_tree
 
 
 # -------------------------------
@@ -49,6 +50,7 @@ def scan(filename):
 # -------------------------------
 # Parseo (parser real)
 # -------------------------------
+
 def parse_file(
     filename,
     dot=False,
@@ -58,6 +60,7 @@ def parse_file(
     gv_out=None,
     gv_format="png",
     gv_dot_only=False,
+    fmt=None,                 # (por compatibilidad; se ignora aquí)
 ):
     print(f" Parseando archivo: {filename}")
     if not os.path.exists(filename):
@@ -80,30 +83,30 @@ def parse_file(
 
     if errors_detected():
         print(" ❌ Errores gramaticales detectados.")
-    else:
-        print(" ✅ Sin errores gramaticales.")
+        return
 
-        # Árbol con rich.Tree
-        if ast_flag:
-            try:
-                _console.rule("[bold blue]AST (rich.Tree)[/bold blue]")
-                _console.print(ast.pretty())
-            except AttributeError:
-                print("⚠️  ast.pretty() no está disponible. "
-                      "Asegúrate de haber añadido pretty() en Node (model.py) "
-                      "y de que parser.py importe 'from model import *'.")
+    print(" ✅ Sin errores gramaticales.")
 
-        # Grafo con Graphviz (opcional desde parse)
-        if graph:
-            astprint_file(
-                filename,
-                out=gv_out or Path(filename).with_suffix("").name + "_AST",
-                fmt=gv_format,
-                dot_only=gv_dot_only,
-                _ast_obj=ast,   # ya tenemos el AST, evitemos reparsear
-            )
+    # ⬇️ SIEMPRE imprime el árbol en consola (rich.Tree)
+    try:
+        _console.rule("[bold blue]AST (rich.Tree)[/bold blue]")
+        _console.print(ast.pretty())
+    except AttributeError:
+        print("⚠️  ast.pretty() no está disponible. "
+              "Asegúrate de haber añadido pretty() en Node (model.py) "
+              "y de que parser.py importe 'from model import *'.")
 
-    # Placeholders para exportar gráficos si luego los implementas
+    # Si además quieres generar el Graphviz desde 'parse' cuando --graph:
+    if graph:
+        astprint_file(
+            filename,
+            out=gv_out or Path(filename).with_suffix("").name + "_AST",
+            fmt=gv_format,
+            dot_only=gv_dot_only,
+            _ast_obj=ast,   # ya tenemos el AST, evitemos reparsear
+        )
+
+    # Placeholders antiguos (si los usabas)
     if dot:
         print(" (TODO) Generar .dot")
     if png:
@@ -171,7 +174,7 @@ def check(filename, sym):
     # 1) Leer fuente
     src = open(filename, encoding="utf-8").read()
 
-    # 2) Tokenizar a lista (para no consumir el generador dos veces)
+    # 2) Tokenizar a lista
     try:
         tok_lex = lexer.Lexer()
     except AttributeError:
@@ -209,10 +212,10 @@ def check(filename, sym):
     # 6) (opcional) imprimir símbolos si --sym
     if sym:
         try:
-            env.print()  # si tu Symtab tiene .print()
+            env.print()
         except Exception:
             try:
-                print(env)  # __str__ de Symtab
+                print(env)
             except Exception:
                 print("⚠️  No pude imprimir la tabla de símbolos (env.print()/__str__).")
 
@@ -248,6 +251,7 @@ def process_path(command, path, **kwargs):
                         gv_out=kwargs.get("gv_out", None),
                         gv_format=kwargs.get("gv_format", "png"),
                         gv_dot_only=kwargs.get("gv_dot_only", False),
+                        fmt=kwargs.get("fmt", None),
                     )
                 elif command == "astprint":
                     astprint_file(
@@ -275,6 +279,7 @@ def process_path(command, path, **kwargs):
                 gv_out=kwargs.get("gv_out", None),
                 gv_format=kwargs.get("gv_format", "png"),
                 gv_dot_only=kwargs.get("gv_dot_only", False),
+                fmt=kwargs.get("fmt", None),
             )
         elif command == "astprint":
             astprint_file(
@@ -301,12 +306,20 @@ def main():
     scan_parser.add_argument("file", help="Archivo o carpeta .bm/.bminor")
 
     # parse
-    parse_parser = subparsers.add_parser("parse", help="Parsea el archivo fuente")
+    parse_parser = subparsers.add_parser("parse", help="Parsea el archivo fuente, y muestra el arbol AST en consola")
     parse_parser.add_argument("file", help="Archivo o carpeta .bm/.bminor")
+
+    # NUEVO: salida unificada
+    parse_parser.add_argument(
+        "--fmt",
+        choices=["prof", "tree", "graphviz"],
+        help="Salida del AST: 'prof' (formato profe), 'tree' (consola), 'graphviz' (imagen)"
+    )
+
+    # Compat (aún funcionan si no usas --fmt)
     parse_parser.add_argument("--dot", action="store_true", help="Generar .dot (placeholder)")
     parse_parser.add_argument("--png", action="store_true", help="Generar .png (placeholder)")
     parse_parser.add_argument("--ast", action="store_true", help="Imprimir AST con rich.Tree")
-    # Graphviz (opcional desde parse)
     parse_parser.add_argument("--graph", action="store_true", help="Generar gráfico del AST (Graphviz)")
     parse_parser.add_argument("--gv-out", default=None, help="Nombre base de salida para Graphviz (sin extensión)")
     parse_parser.add_argument("--gv-format", default="png", choices=["png", "svg", "pdf"], help="Formato de imagen")
@@ -341,6 +354,7 @@ def main():
         gv_format=getattr(args, "gv_format", "png"),
         gv_dot_only=getattr(args, "gv_dot_only", False),
         sym=getattr(args, "sym", False),
+        fmt=getattr(args, "fmt", None),   # <- pasa el formato elegido
     )
 
 
