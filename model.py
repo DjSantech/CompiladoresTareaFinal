@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass, field
 from multimethod import multimeta
 from typing import List, Optional, Union
@@ -168,10 +167,16 @@ class Assign(Expression):
     target: Expression = None    
     value : Expression = None
 
+# --- [ NUEVA CLASE PARA INICIALIZACIÓN DE ARRAYS ] ---
+@dataclass
+class ArrayInit(Expression):
+    """Representa la lista de inicialización de un array: {1, 2, 3}"""
+    values: List[Expression] = field(default_factory=list)
+# -----------------------------------------------------
+
 # =====================================================
 # Sentencias
 # =====================================================
-@dataclass
 @dataclass
 class VarDecl(Statement):
     name: str = ""

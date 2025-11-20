@@ -1,0 +1,39 @@
+// test_program.bminor
+
+// 1. Declaración de variable global simple
+global_val: integer = 5;
+
+// 2. Declaración e inicialización de array global (prueba ArrayInit)
+my_array: array [3] integer = {10, 20, 30};
+
+// Función principal.
+main: function integer() = 
+{
+    // Declaraciones locales
+    i: integer;
+    sum: integer = 0;
+
+    print "--- Iniciando ciclo FOR ---";
+
+    // 3. Ciclo FOR: Recorre el array.
+    for (i = 0; i < 3; i++)
+    {
+        // 4. Asignación y Operación Binaria usando Array Index
+        sum = sum + my_array[i]; 
+        
+        // 5. Imprime el valor actual del array
+        print my_array[i]; 
+    }
+
+    print "--- Suma total ---";
+    print sum; 
+
+    // 6. Acceso y modificación de variable global
+    global_val = global_val + sum;
+    
+    print "--- Nuevo valor global ---";
+    print global_val; 
+
+    // 7. Retorno final
+    return 0;
+}

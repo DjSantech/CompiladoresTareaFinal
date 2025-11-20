@@ -1,0 +1,123 @@
+/* =============================================== *
+ * *
+ * knight.bminor - (Corregido)                     *
+ * *
+ * Resuelve el "Recorrido del Caballo" (Knight's Tour) *
+ * usando backtracking.                            *
+ * *
+ * =============================================== */
+
+N: integer = 8; // tamaño del tablero
+
+index: function integer (x: integer, y:integer) = {
+	return x * N + y;
+}
+
+/* * Función auxiliar para imprimir el tablero
+ *
+ * NOTA IMPORTANTE: Tu compilador (bminor2llvm.py) hace que CADA
+ * llamada a 'print' añada un salto de línea ('\n').
+ * Esto hará que el tablero se imprima como una columna larga.
+ *
+ * Para imprimir una cuadrícula, necesitarías modificar tu
+ * compilador para que tenga una función (ej. 'print_int')
+ * que NO añada un salto de línea.
+ */
+print_board: function void (board: array [] integer) = {
+	x: integer;
+	y: integer;
+	
+	for(x = 0; x < N; x++) {
+		for(y = 0; y < N; y++) {
+			// ERROR CORREGIDO: Se quitó el 'if (x % 2 == y % 2)'
+			// para imprimir *todas* las casillas de la fila.
+			// (Aunque se imprimirán una por línea debido a tu 'print')
+			print board[index(x,y)];
+		}
+		// Este 'print' ahora solo añade un salto de línea extra 
+		// entre filas, pero el daño ya está hecho por el 'print' de arriba.
+		print "\n";
+	}
+}
+
+// funcion auxiliar para validar si un movto es valido
+// (Esta función estaba correcta)
+can_move: function boolean (x:integer, y:integer, board: array [] integer) = {
+	// Comprueba límites Y si la casilla está vacía (0)
+	return x >= 0 && x < N && y >= 0 && y < N && board[index(x,y)] == 0;
+}
+
+
+/*
+ * Funcion recursiva para recorrer el caballo el tablero
+ * walk(x, y, m, ...)
+ * Estando en la casilla (x,y) (que fue el movto m-1),
+ * se busca el siguiente movimiento 'm'.
+ */
+walk: function boolean (x: integer, y: integer, m: integer, board: array [] integer, xmoves: array [] integer, ymoves: array [] integer) = {
+	i: integer;
+	
+	// ERROR CORREGIDO: Caso Base
+	// Si 'm' es 65 (N*N + 1), significa que ya colocamos
+	// exitosamente los 64 movimientos (del 1 al 64).
+	if (m > N * N) {
+		print_board(board);
+		return true;
+	}
+	
+	for (i = 0; i < array_length(xmoves); i++) {
+		next_x: integer = x + xmoves[i];
+		next_y: integer = y + ymoves[i];
+		
+		if (can_move(next_x, next_y, board)) {
+			
+			// 1. Mover
+			board[index(next_x, next_y)] = m; // Coloca el movimiento 'm'
+			
+			// 2. Recursión
+			if (walk(next_x, next_y, m+1, board, xmoves, ymoves)) {
+				return true;
+			}
+			
+			// 3. Backtracking
+			// ERROR CORREGIDO: El backtracking debe ser '0' (vacío),
+			// no '-1', porque 'can_move' busca '0'.
+			board[index(next_x, next_y)] = 0;
+		}
+	}
+	
+	// No se encontraron movimientos válidos desde esta casilla
+	return false;
+}
+
+
+main: function void () = {
+	board: array [N*N] integer;
+	i: integer; // Variable para el bucle de inicialización
+	
+	// ERROR CRÍTICO 1: Inicializar el tablero
+	// 'alloca' (lo que usa tu compilador) no inicializa la
+	// memoria. Debemos ponerla a 0 manualmente.
+	for (i = 0; i < N*N; i++) {
+		board[i] = 0;
+	}
+	
+	// Los 8 movimientos del caballo
+	// (Usar '[]' es más claro que '[N]' si das un inicializador)
+	xmoves: array [N] integer = {2, 1, -1, -2, -2, -1, 1, 2};
+	ymoves: array [N] integer = {1, 2, 2, 1, -1, -2, -2, -1};
+	
+	
+	// ERROR CRÍTICO 2: Empezar el recorrido
+	// Debemos colocar la primera pieza (1) en la casilla (0,0)
+	// ANTES de llamar a 'walk'.
+	board[index(0, 0)] = 1; 
+	
+	// Ahora, llamamos a 'walk' desde (0,0) para que
+	// busque el SEGUNDO movimiento (m=2).
+	if (walk(0, 0, 2, board, xmoves, ymoves)) {
+		print "Solucion encontrada!\n";
+	} else {
+		print "No existe solucion!\n";
+	}
+}

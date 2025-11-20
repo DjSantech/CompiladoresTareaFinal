@@ -6,7 +6,7 @@ import sly
 
 from lexer  import Lexer
 from errors import error, errors_detected
-from model  import *
+from model  import * # CORREGIDO: Se usa solo * para importar todos los nodos (incluyendo ArrayInit)
 
 # Helper: fija el número de línea en el nodo y lo retorna
 def _L(node, lineno):
@@ -19,7 +19,7 @@ class Parser(sly.Parser):
     # Configuración de SLY
     log = logging.getLogger()
     log.setLevel(logging.ERROR)
-    expected_shift_reduce = 1
+    # expected_shift_reduce = 1 # Opcional, pero bueno mantenerlo
     debugfile = 'grammar.txt'
 
     # Tokens del lexer
@@ -42,6 +42,7 @@ class Parser(sly.Parser):
     def decl_list(self, p):
         return []
 
+    # Declaraciones sin inicialización
     @_("ID ':' type_simple ';'")
     def decl(self, p):
         return _L(VarDecl(name=p.ID, type=SimpleType(name=p.type_simple)), p.lineno)
@@ -53,7 +54,8 @@ class Parser(sly.Parser):
     @_("ID ':' type_func ';'")
     def decl(self, p):
         return _L(VarDecl(name=p.ID, type=p.type_func), p.lineno)
-
+    
+    # Declaraciones con inicialización
     @_("decl_init")
     def decl(self, p):
         return p.decl_init
@@ -62,10 +64,11 @@ class Parser(sly.Parser):
     def decl_init(self, p):
         return _L(VarDecl(name=p.ID, type=SimpleType(name=p.type_simple), init=p.expr), p.lineno)
 
-    @_("ID ':' type_array_sized '=' '{' opt_expr_list '}' ';'")
+    # REGLA CORREGIDA para inicialización de Array (usa la regla array_init)
+    @_("ID ':' type_array_sized '=' array_init ';'")
     def decl_init(self, p):
-        init_expr = _L(Call(func=Identifier(name="array_init"), args=p.opt_expr_list), p.lineno)
-        return _L(VarDecl(name=p.ID, type=p.type_array_sized, init=init_expr), p.lineno)
+        # Esta regla usa el nodo ArrayInit construido por def array_init()
+        return _L(VarDecl(name=p.ID, type=p.type_array_sized, init=p.array_init), p.lineno)
 
     @_("ID ':' type_func '=' '{' opt_stmt_list '}'")
     def decl_init(self, p):
@@ -73,7 +76,7 @@ class Parser(sly.Parser):
         return _L(VarDecl(name=p.ID, type=p.type_func, init=body), p.lineno)
 
     # ------------------------------------------------------------------
-    # SENTENCIAS
+    # SENTENCIAS / INICIALIZACIÓN DE ARRAY
     # ------------------------------------------------------------------
     @_("stmt_list")
     def opt_stmt_list(self, p):
@@ -81,6 +84,29 @@ class Parser(sly.Parser):
 
     @_("empty")
     def opt_stmt_list(self, p):
+        return []
+    
+    # REGLAS PARA ARRAY_INIT (sección de inicialización de arrays)
+    # CORRECCIÓN 1: Se usa el literal '{' y '}' en lugar de LBRACE/RBRACE
+    @_("'{' expr_list '}'")
+    def array_init(self, p):
+        # Esto parsea '{ expr_list }' y usa el nodo ArrayInit
+        return _L(ArrayInit(values=p.expr_list), p.lineno)
+
+    @_('expr')
+    def expr_list(self, p):
+        # Un solo elemento en la lista (se mantiene como la base unificada)
+        return [p.expr]
+        
+    # CORRECCIÓN 2: Se usa el literal ',' en lugar de COMMA
+    @_("expr_list ',' expr")
+    def expr_list(self, p):
+        # Múltiples elementos en la lista (recursivo)
+        return p.expr_list + [p.expr]
+        
+    @_('empty')
+    def expr_list(self, p):
+        # Lista vacía (e.g., {} )
         return []
 
     @_("stmt stmt_list")
@@ -186,13 +212,8 @@ class Parser(sly.Parser):
     def opt_expr_list(self, p):
         return p.expr_list
 
-    @_("expr ',' expr_list")
-    def expr_list(self, p):
-        return [p.expr] + p.expr_list
-
-    @_("expr")
-    def expr_list(self, p):
-        return [p.expr]
+    # CORRECCIÓN 3: Se eliminan las reglas duplicadas de expr_list de esta sección
+    # Las reglas de expr_list de la sección SENTENCIAS son las únicas válidas.
 
     @_("empty")
     def opt_expr(self, p):
@@ -315,7 +336,7 @@ class Parser(sly.Parser):
     def group(self, p):
         return _L(Call(func=Identifier(name=p.ID), args=p.opt_expr_list), p.lineno)
 
-    @_("ID index")                   # acceso a arreglo
+    @_("ID index")                  # acceso a arreglo
     def group(self, p):
         return _L(ArrayIndex(array=Identifier(name=p.ID), index=p.index), p.lineno)
 
@@ -354,6 +375,10 @@ class Parser(sly.Parser):
     @_("FALSE")
     def factor(self, p):
         return _L(Boolean(value=False), p.lineno)
+        
+    @_("ARRAY '(' opt_expr_list ')'")   # cubre el caso en que 'array' es palabra reservada
+    def group(self, p):
+        return _L(Call(func=Identifier(name="array"), args=p.opt_expr_list), p.lineno)
 
     # ------------------------------------------------------------------
     # TIPOS
@@ -366,6 +391,14 @@ class Parser(sly.Parser):
     @_("VOID")
     def type_simple(self, p):
         return p[0]
+        # ADICIONAL: cuando el lexer no marcó la keyword y vino como ID
+    @_("ID")
+    def type_simple(self, p):
+        kw = p.ID.lower()
+        if kw in ("int", "float", "bool", "boolean", "char", "string", "void"):
+            return "bool" if kw == "boolean" else kw   # normaliza a minúsculas coherentes
+        # cualquier otro ID como tipo pasa tal cual (tu checker decidirá si es válido)
+        return kw
 
     @_("ARRAY '[' ']' type_simple")
     @_("ARRAY '[' ']' type_array")
@@ -446,5 +479,13 @@ if __name__ == '__main__':
     if len(sys.argv) != 2:
         raise SystemExit("Usage: python parser.py <filename>")
     txt = open(sys.argv[1], encoding='utf-8').read()
+    
+    # Es crucial llamar a set_source si quieres ver el error con la línea de código
+    import importlib
+    errors = importlib.import_module("errors")
+    errors.set_source(sys.argv[1], txt) 
+    
     ast = parse(txt)
-    Console().print(ast.pretty())
+    
+    if not errors.errors_detected():
+        Console().print(ast.pretty())

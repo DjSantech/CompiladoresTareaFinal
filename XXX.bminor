@@ -1,0 +1,203 @@
+/* =============================================== *
+ *  knight_warnsdorff.bminor                       *
+ *                                                 *
+ *  Recorrido del caballo usando la heurística     *
+ *  de Warnsdorff en un tablero 8x8.               *
+ * =============================================== */
+
+N: integer = 8;
+
+// Movimientos del caballo
+KNIGHT_DX: array [8] integer = {  2,  1, -1, -2, -2, -1,  1,  2 };
+KNIGHT_DY: array [8] integer = {  1,  2,  2,  1, -1, -2, -2, -1 };
+
+// Devuelve el índice lineal (y*N + x) para el tablero 1D
+index_of: function integer ( x: integer, y: integer ) = {
+	return y * N + x;
+}
+
+// ¿La casilla (x,y) está dentro del tablero?
+in_board: function boolean ( x: integer, y: integer ) = {
+	if (x < 0 || x >= N) {
+		return false;
+	}
+	if (y < 0 || y >= N) {
+		return false;
+	}
+	return true;
+}
+
+/* ¿La casilla (x,y) es válida y no ha sido visitada? 
+   board[pos] == 0 significa "no visitada" 
+ */
+is_valid_move: function boolean ( x: integer, y: integer, board: array [] integer ) = {
+	pos: integer;
+
+	if (!in_board(x,y)) {
+		return false;
+	}
+
+	pos = index_of(x,y);
+
+	if (board[pos] != 0) {
+		return false;
+	}
+
+	return true;
+}
+
+// Cuenta cuántos movimientos válidos tiene el 
+// caballo desde (x,y)
+degree_of: function integer ( x: integer, y: integer, board: array [] integer ) = {
+	count: integer = 0;
+	i: integer;
+	nx: integer;
+	ny: integer;
+
+	for(i=0; i<8; i++) {
+		nx = x + KNIGHT_DX[i];
+		ny = y + KNIGHT_DY[i];
+
+		if (is_valid_move(nx,ny,board)) {
+			count = count + 1;
+		}
+	}
+
+	return count;
+}
+
+/* =============================================== *
+ * Regla de Warnsdorff:                            *
+ *                                                 *
+ * Entre todos los movimientos válidos del caballo *
+ * desde (x,y), escoge aquel cuya casilla destino  *
+ * tenga el MENOR grado (menos movimientos posibles).
+ *                                                 *
+ * Devuelve el índice [0..7] del movimiento en     *
+ * KNIGHT_DX/DY, o -1 si no hay movimientos válidos.
+ * =============================================== */
+warnsdorff_next: function integer ( x: integer, y: integer, board: array [] integer ) = {
+	i: integer;
+	best_move: integer = -1;
+	best_degree: integer = 9;   /* más que el máximo posible (8) */
+	nx: integer;
+	ny: integer;
+	d: integer;
+
+	for(i=0; i<8; i++) {
+		nx = x + KNIGHT_DX[i];
+		ny = y + KNIGHT_DY[i];
+
+		if (is_valid_move(nx,ny,board)) {
+			d = degree_of(nx,ny,board);
+			if (d < best_degree) {
+				best_degree = d;
+				best_move = i;
+			}
+		}
+	}
+
+	return best_move;
+}
+
+/* =============================================== *
+ * Realiza UN movimiento del caballo desde la      *
+ * posición curr_pos (índice lineal) usando la     *
+ * heurística de Warnsdorff.                       *
+ *                                                 *
+ * Devuelve el nuevo índice lineal de la casilla   *
+ * destino o -1 si no hay movimiento posible.      *
+ * =============================================== */
+knight_step_warnsdorff: function integer ( curr_pos: integer, board: array [] integer ) = {
+	x: integer;
+	y: integer;
+	move_idx: integer;
+	nx: integer;
+	ny: integer;
+
+	// Convertir índice lineal a (x,y)
+	x = curr_pos % N;
+	y = curr_pos / N;
+
+	move_idx = warnsdorff_next(x,y,board);
+	if (move_idx < 0) {
+		return -1;
+	}
+
+	nx = x + KNIGHT_DX[move_idx];
+	ny = y + KNIGHT_DY[move_idx];
+
+	return index_of(nx,ny);
+}
+
+/* =============================================== *
+ * Imprime el tablero N x N con los números de     *
+ * los pasos                                       *
+ * =============================================== */
+print_board: function void ( board: array [] integer ) = {
+	y: integer;
+	x: integer;
+	pos: integer;
+
+	for(y=0; y<N; y++) {
+		for(x=0; x<N; x++) {
+			pos = index_of(x,y);
+			print board[pos], " ";
+		}
+		print "\n";
+	}
+}
+
+/* =============================================== *
+ * Construye un tour completo del caballo usando   *
+ * Warnsdorff comenzando en (start_x, start_y).    *
+ * Devuelve true si logró completar todas las 64   *
+ * casillas.                                       *
+ * =============================================== */
+knight_tour_warnsdorff: function boolean ( 
+	board: array [] integer, 
+	start_x: integer, 
+	start_y: integer
+) = {
+	total_squares: integer = N * N;
+	curr_pos: integer;
+	step: integer;
+	i: integer;
+
+	// Inicializar tablero a 0 (no visitado)
+	for(i=0; i<total_squares; i++) {
+		board[i] = 0;
+	}
+
+	curr_pos = index_of(start_x,start_y);
+	board[curr_pos] = 1;  /* primer paso */
+
+	/* Hacer los pasos restantes */
+	for(step=2; step<=total_squares; step++) {
+		curr_pos = knight_step_warnsdorff(curr_pos, board);
+		if (curr_pos < 0) {
+			// No hay movimiento válido: fallo del tour
+			return false;
+		}
+		board[curr_pos] = step;
+	}
+
+	return true;
+}
+
+// main: ejemplo de uso desde (0,0)
+main: function integer () = {
+	board: array [64] integer;
+	ok: boolean;
+
+	ok = knight_tour_warnsdorff(board, 0, 0);
+
+	if (ok) {
+		print "Tour completo encontrado:\n";
+		print_board(board);
+	} else {
+		print "No se pudo completar el tour desde (0,0)\n";
+	}
+
+	return 0;
+}
