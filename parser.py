@@ -207,7 +207,7 @@ class Parser(sly.Parser):
     @_("empty")
     def opt_expr_list(self, p):
         return []
-
+    
     @_("expr_list")
     def opt_expr_list(self, p):
         return p.expr_list
@@ -300,9 +300,15 @@ class Parser(sly.Parser):
         return p.expr8
 
     @_("'-' expr8")
-    @_("'!' expr8")
+    @_("NOT expr8")
     def expr8(self, p):
-        return _L(UnaryOper(oper=p[0], expr=p.expr8), p.lineno)
+        # El operador '!' debe usar UnaryOp
+        if p[0] == '!':
+            # Asumiendo que UnaryOp toma el operador '!'
+            return _L(UnaryOp(op='!', expr=p.expr8), p.lineno)
+        else:
+            # El operador '-' (negativo unario) usa UnaryOper
+            return _L(UnaryOper(oper=p[0], expr=p.expr8), p.lineno)
 
     @_("INC expr8")
     def expr8(self, p):

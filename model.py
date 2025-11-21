@@ -93,6 +93,10 @@ class Param(Node):
 # Expresiones
 # =====================================================
 @dataclass
+class UnaryOp(Expression):
+    op: str = None      # Operador: '!', '-', '++', '--'
+    expr: Expression = None
+@dataclass
 class Identifier(Expression):
     name: str = ""
 

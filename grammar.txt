@@ -80,7 +80,7 @@ Rule 76    expr7 -> expr7 ^ expr8
 Rule 77    expr8 -> expr9
 Rule 78    expr8 -> DEC expr8
 Rule 79    expr8 -> INC expr8
-Rule 80    expr8 -> ! expr8
+Rule 80    expr8 -> NOT expr8
 Rule 81    expr8 -> - expr8
 Rule 82    expr9 -> group
 Rule 83    expr9 -> expr9 DEC
@@ -126,7 +126,6 @@ Unused terminals:
 
 Terminals, with rules where they appear:
 
-!                    : 80
 %                    : 72
 (                    : 29 33 36 37 38 44 85 88 89 109 110
 )                    : 29 33 36 37 38 44 85 88 89 109 110
@@ -164,6 +163,7 @@ LE                   : 64
 LOR                  : 58
 LT                   : 65
 NE                   : 66
+NOT                  : 80
 PRINT                : 44 45
 RETURN               : 46
 STRING               : 100
@@ -302,7 +302,7 @@ state 0
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -330,7 +330,7 @@ state 0
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -462,7 +462,7 @@ state 4
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -491,7 +491,7 @@ state 4
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -565,7 +565,7 @@ state 6
     IF              reduce using rule 40 (simple_stmt -> decl .)
     DEC             reduce using rule 40 (simple_stmt -> decl .)
     INC             reduce using rule 40 (simple_stmt -> decl .)
-    !               reduce using rule 40 (simple_stmt -> decl .)
+    NOT             reduce using rule 40 (simple_stmt -> decl .)
     -               reduce using rule 40 (simple_stmt -> decl .)
     ARRAY           reduce using rule 40 (simple_stmt -> decl .)
     (               reduce using rule 40 (simple_stmt -> decl .)
@@ -596,7 +596,7 @@ state 7
     IF              reduce using rule 20 (stmt -> closed_stmt .)
     DEC             reduce using rule 20 (stmt -> closed_stmt .)
     INC             reduce using rule 20 (stmt -> closed_stmt .)
-    !               reduce using rule 20 (stmt -> closed_stmt .)
+    NOT             reduce using rule 20 (stmt -> closed_stmt .)
     -               reduce using rule 20 (stmt -> closed_stmt .)
     ARRAY           reduce using rule 20 (stmt -> closed_stmt .)
     (               reduce using rule 20 (stmt -> closed_stmt .)
@@ -624,7 +624,7 @@ state 8
     IF              reduce using rule 21 (stmt -> open_stmt .)
     DEC             reduce using rule 21 (stmt -> open_stmt .)
     INC             reduce using rule 21 (stmt -> open_stmt .)
-    !               reduce using rule 21 (stmt -> open_stmt .)
+    NOT             reduce using rule 21 (stmt -> open_stmt .)
     -               reduce using rule 21 (stmt -> open_stmt .)
     ARRAY           reduce using rule 21 (stmt -> open_stmt .)
     (               reduce using rule 21 (stmt -> open_stmt .)
@@ -653,7 +653,7 @@ state 9
     IF              reduce using rule 5 (decl -> decl_init .)
     DEC             reduce using rule 5 (decl -> decl_init .)
     INC             reduce using rule 5 (decl -> decl_init .)
-    !               reduce using rule 5 (decl -> decl_init .)
+    NOT             reduce using rule 5 (decl -> decl_init .)
     -               reduce using rule 5 (decl -> decl_init .)
     ARRAY           reduce using rule 5 (decl -> decl_init .)
     (               reduce using rule 5 (decl -> decl_init .)
@@ -718,7 +718,7 @@ state 11
     IF              reduce using rule 22 (closed_stmt -> simple_stmt .)
     DEC             reduce using rule 22 (closed_stmt -> simple_stmt .)
     INC             reduce using rule 22 (closed_stmt -> simple_stmt .)
-    !               reduce using rule 22 (closed_stmt -> simple_stmt .)
+    NOT             reduce using rule 22 (closed_stmt -> simple_stmt .)
     -               reduce using rule 22 (closed_stmt -> simple_stmt .)
     ARRAY           reduce using rule 22 (closed_stmt -> simple_stmt .)
     (               reduce using rule 22 (closed_stmt -> simple_stmt .)
@@ -746,7 +746,7 @@ state 12
     IF              reduce using rule 23 (closed_stmt -> do_while_stmt .)
     DEC             reduce using rule 23 (closed_stmt -> do_while_stmt .)
     INC             reduce using rule 23 (closed_stmt -> do_while_stmt .)
-    !               reduce using rule 23 (closed_stmt -> do_while_stmt .)
+    NOT             reduce using rule 23 (closed_stmt -> do_while_stmt .)
     -               reduce using rule 23 (closed_stmt -> do_while_stmt .)
     ARRAY           reduce using rule 23 (closed_stmt -> do_while_stmt .)
     (               reduce using rule 23 (closed_stmt -> do_while_stmt .)
@@ -774,7 +774,7 @@ state 13
     IF              reduce using rule 24 (closed_stmt -> while_stmt .)
     DEC             reduce using rule 24 (closed_stmt -> while_stmt .)
     INC             reduce using rule 24 (closed_stmt -> while_stmt .)
-    !               reduce using rule 24 (closed_stmt -> while_stmt .)
+    NOT             reduce using rule 24 (closed_stmt -> while_stmt .)
     -               reduce using rule 24 (closed_stmt -> while_stmt .)
     ARRAY           reduce using rule 24 (closed_stmt -> while_stmt .)
     (               reduce using rule 24 (closed_stmt -> while_stmt .)
@@ -802,7 +802,7 @@ state 14
     IF              reduce using rule 25 (closed_stmt -> for_stmt_closed .)
     DEC             reduce using rule 25 (closed_stmt -> for_stmt_closed .)
     INC             reduce using rule 25 (closed_stmt -> for_stmt_closed .)
-    !               reduce using rule 25 (closed_stmt -> for_stmt_closed .)
+    NOT             reduce using rule 25 (closed_stmt -> for_stmt_closed .)
     -               reduce using rule 25 (closed_stmt -> for_stmt_closed .)
     ARRAY           reduce using rule 25 (closed_stmt -> for_stmt_closed .)
     (               reduce using rule 25 (closed_stmt -> for_stmt_closed .)
@@ -830,7 +830,7 @@ state 15
     IF              reduce using rule 26 (closed_stmt -> if_stmt_closed .)
     DEC             reduce using rule 26 (closed_stmt -> if_stmt_closed .)
     INC             reduce using rule 26 (closed_stmt -> if_stmt_closed .)
-    !               reduce using rule 26 (closed_stmt -> if_stmt_closed .)
+    NOT             reduce using rule 26 (closed_stmt -> if_stmt_closed .)
     -               reduce using rule 26 (closed_stmt -> if_stmt_closed .)
     ARRAY           reduce using rule 26 (closed_stmt -> if_stmt_closed .)
     (               reduce using rule 26 (closed_stmt -> if_stmt_closed .)
@@ -858,7 +858,7 @@ state 16
     IF              reduce using rule 27 (open_stmt -> for_stmt_open .)
     DEC             reduce using rule 27 (open_stmt -> for_stmt_open .)
     INC             reduce using rule 27 (open_stmt -> for_stmt_open .)
-    !               reduce using rule 27 (open_stmt -> for_stmt_open .)
+    NOT             reduce using rule 27 (open_stmt -> for_stmt_open .)
     -               reduce using rule 27 (open_stmt -> for_stmt_open .)
     ARRAY           reduce using rule 27 (open_stmt -> for_stmt_open .)
     (               reduce using rule 27 (open_stmt -> for_stmt_open .)
@@ -886,7 +886,7 @@ state 17
     IF              reduce using rule 28 (open_stmt -> if_stmt_open .)
     DEC             reduce using rule 28 (open_stmt -> if_stmt_open .)
     INC             reduce using rule 28 (open_stmt -> if_stmt_open .)
-    !               reduce using rule 28 (open_stmt -> if_stmt_open .)
+    NOT             reduce using rule 28 (open_stmt -> if_stmt_open .)
     -               reduce using rule 28 (open_stmt -> if_stmt_open .)
     ARRAY           reduce using rule 28 (open_stmt -> if_stmt_open .)
     (               reduce using rule 28 (open_stmt -> if_stmt_open .)
@@ -969,7 +969,7 @@ state 18
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -996,7 +996,7 @@ state 18
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -1058,7 +1058,7 @@ state 20
     IF              reduce using rule 41 (simple_stmt -> block_stmt .)
     DEC             reduce using rule 41 (simple_stmt -> block_stmt .)
     INC             reduce using rule 41 (simple_stmt -> block_stmt .)
-    !               reduce using rule 41 (simple_stmt -> block_stmt .)
+    NOT             reduce using rule 41 (simple_stmt -> block_stmt .)
     -               reduce using rule 41 (simple_stmt -> block_stmt .)
     ARRAY           reduce using rule 41 (simple_stmt -> block_stmt .)
     (               reduce using rule 41 (simple_stmt -> block_stmt .)
@@ -1086,7 +1086,7 @@ state 21
     IF              reduce using rule 42 (simple_stmt -> return_stmt .)
     DEC             reduce using rule 42 (simple_stmt -> return_stmt .)
     INC             reduce using rule 42 (simple_stmt -> return_stmt .)
-    !               reduce using rule 42 (simple_stmt -> return_stmt .)
+    NOT             reduce using rule 42 (simple_stmt -> return_stmt .)
     -               reduce using rule 42 (simple_stmt -> return_stmt .)
     ARRAY           reduce using rule 42 (simple_stmt -> return_stmt .)
     (               reduce using rule 42 (simple_stmt -> return_stmt .)
@@ -1114,7 +1114,7 @@ state 22
     IF              reduce using rule 43 (simple_stmt -> print_stmt .)
     DEC             reduce using rule 43 (simple_stmt -> print_stmt .)
     INC             reduce using rule 43 (simple_stmt -> print_stmt .)
-    !               reduce using rule 43 (simple_stmt -> print_stmt .)
+    NOT             reduce using rule 43 (simple_stmt -> print_stmt .)
     -               reduce using rule 43 (simple_stmt -> print_stmt .)
     ARRAY           reduce using rule 43 (simple_stmt -> print_stmt .)
     (               reduce using rule 43 (simple_stmt -> print_stmt .)
@@ -1196,7 +1196,7 @@ state 23
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1223,7 +1223,7 @@ state 23
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -1302,7 +1302,7 @@ state 25
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1322,7 +1322,7 @@ state 25
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -1412,7 +1412,7 @@ state 26
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1439,7 +1439,7 @@ state 26
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -1548,7 +1548,7 @@ state 27
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1575,7 +1575,7 @@ state 27
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -1661,7 +1661,7 @@ state 29
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1682,7 +1682,7 @@ state 29
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -1747,7 +1747,7 @@ state 30
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1770,7 +1770,7 @@ state 30
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     FALSE           shift and go to state 49
@@ -1918,7 +1918,7 @@ state 39
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -1937,7 +1937,7 @@ state 39
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -2037,7 +2037,7 @@ state 43
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -2056,7 +2056,7 @@ state 43
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -2079,7 +2079,7 @@ state 44
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -2098,7 +2098,7 @@ state 44
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -2117,11 +2117,11 @@ state 44
 
 state 45
 
-    (80) expr8 -> ! . expr8
+    (80) expr8 -> NOT . expr8
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -2140,7 +2140,7 @@ state 45
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -2391,7 +2391,7 @@ state 56
     IF              reduce using rule 40 (simple_stmt -> decl .)
     DEC             reduce using rule 40 (simple_stmt -> decl .)
     INC             reduce using rule 40 (simple_stmt -> decl .)
-    !               reduce using rule 40 (simple_stmt -> decl .)
+    NOT             reduce using rule 40 (simple_stmt -> decl .)
     -               reduce using rule 40 (simple_stmt -> decl .)
     ARRAY           reduce using rule 40 (simple_stmt -> decl .)
     (               reduce using rule 40 (simple_stmt -> decl .)
@@ -2542,7 +2542,7 @@ state 62
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -2564,7 +2564,7 @@ state 62
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -2623,7 +2623,7 @@ state 63
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -2643,7 +2643,7 @@ state 63
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -2687,7 +2687,7 @@ state 65
     IF              reduce using rule 39 (simple_stmt -> expr ; .)
     DEC             reduce using rule 39 (simple_stmt -> expr ; .)
     INC             reduce using rule 39 (simple_stmt -> expr ; .)
-    !               reduce using rule 39 (simple_stmt -> expr ; .)
+    NOT             reduce using rule 39 (simple_stmt -> expr ; .)
     -               reduce using rule 39 (simple_stmt -> expr ; .)
     ARRAY           reduce using rule 39 (simple_stmt -> expr ; .)
     (               reduce using rule 39 (simple_stmt -> expr ; .)
@@ -2750,7 +2750,7 @@ state 68
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -2771,7 +2771,7 @@ state 68
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -2852,7 +2852,7 @@ state 71
     IF              reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
     DEC             reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
     INC             reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
-    !               reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
+    NOT             reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
     -               reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
     ARRAY           reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
     (               reduce using rule 35 (for_stmt_closed -> for_header closed_stmt .)
@@ -2880,7 +2880,7 @@ state 72
     IF              reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
     DEC             reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
     INC             reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
-    !               reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
+    NOT             reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
     -               reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
     ARRAY           reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
     (               reduce using rule 34 (for_stmt_open -> for_header open_stmt .)
@@ -2912,7 +2912,7 @@ state 73
     IF              reduce using rule 20 (stmt -> closed_stmt .)
     DEC             reduce using rule 20 (stmt -> closed_stmt .)
     INC             reduce using rule 20 (stmt -> closed_stmt .)
-    !               reduce using rule 20 (stmt -> closed_stmt .)
+    NOT             reduce using rule 20 (stmt -> closed_stmt .)
     -               reduce using rule 20 (stmt -> closed_stmt .)
     ARRAY           reduce using rule 20 (stmt -> closed_stmt .)
     (               reduce using rule 20 (stmt -> closed_stmt .)
@@ -2939,7 +2939,7 @@ state 74
     IF              reduce using rule 32 (if_stmt_open -> if_cond stmt .)
     DEC             reduce using rule 32 (if_stmt_open -> if_cond stmt .)
     INC             reduce using rule 32 (if_stmt_open -> if_cond stmt .)
-    !               reduce using rule 32 (if_stmt_open -> if_cond stmt .)
+    NOT             reduce using rule 32 (if_stmt_open -> if_cond stmt .)
     -               reduce using rule 32 (if_stmt_open -> if_cond stmt .)
     ARRAY           reduce using rule 32 (if_stmt_open -> if_cond stmt .)
     (               reduce using rule 32 (if_stmt_open -> if_cond stmt .)
@@ -3012,7 +3012,7 @@ state 78
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3034,7 +3034,7 @@ state 78
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -3131,7 +3131,7 @@ state 83
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3152,7 +3152,7 @@ state 83
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -3213,7 +3213,7 @@ state 84
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3234,7 +3234,7 @@ state 84
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -3285,7 +3285,7 @@ state 85
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3304,7 +3304,7 @@ state 85
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3356,7 +3356,7 @@ state 86
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3376,7 +3376,7 @@ state 86
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -3422,7 +3422,7 @@ state 87
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3441,7 +3441,7 @@ state 87
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3477,7 +3477,7 @@ state 88
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3496,7 +3496,7 @@ state 88
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3531,7 +3531,7 @@ state 89
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3550,7 +3550,7 @@ state 89
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3585,7 +3585,7 @@ state 90
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3604,7 +3604,7 @@ state 90
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3639,7 +3639,7 @@ state 91
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3658,7 +3658,7 @@ state 91
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3693,7 +3693,7 @@ state 92
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3712,7 +3712,7 @@ state 92
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3747,7 +3747,7 @@ state 93
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3766,7 +3766,7 @@ state 93
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3798,7 +3798,7 @@ state 94
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3817,7 +3817,7 @@ state 94
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3848,7 +3848,7 @@ state 95
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3867,7 +3867,7 @@ state 95
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3894,7 +3894,7 @@ state 96
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3913,7 +3913,7 @@ state 96
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3939,7 +3939,7 @@ state 97
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -3958,7 +3958,7 @@ state 97
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -3984,7 +3984,7 @@ state 98
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -4003,7 +4003,7 @@ state 98
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -4083,7 +4083,7 @@ state 101
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -4102,7 +4102,7 @@ state 101
     (97) factor -> . ID
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     ID              shift and go to state 100
@@ -4221,26 +4221,26 @@ state 105
 
 state 106
 
-    (80) expr8 -> ! expr8 .
-    ^               reduce using rule 80 (expr8 -> ! expr8 .)
-    %               reduce using rule 80 (expr8 -> ! expr8 .)
-    /               reduce using rule 80 (expr8 -> ! expr8 .)
-    *               reduce using rule 80 (expr8 -> ! expr8 .)
-    -               reduce using rule 80 (expr8 -> ! expr8 .)
-    +               reduce using rule 80 (expr8 -> ! expr8 .)
-    GE              reduce using rule 80 (expr8 -> ! expr8 .)
-    GT              reduce using rule 80 (expr8 -> ! expr8 .)
-    LE              reduce using rule 80 (expr8 -> ! expr8 .)
-    LT              reduce using rule 80 (expr8 -> ! expr8 .)
-    NE              reduce using rule 80 (expr8 -> ! expr8 .)
-    EQ              reduce using rule 80 (expr8 -> ! expr8 .)
-    LAND            reduce using rule 80 (expr8 -> ! expr8 .)
-    LOR             reduce using rule 80 (expr8 -> ! expr8 .)
-    ;               reduce using rule 80 (expr8 -> ! expr8 .)
-    )               reduce using rule 80 (expr8 -> ! expr8 .)
-    ,               reduce using rule 80 (expr8 -> ! expr8 .)
-    ]               reduce using rule 80 (expr8 -> ! expr8 .)
-    }               reduce using rule 80 (expr8 -> ! expr8 .)
+    (80) expr8 -> NOT expr8 .
+    ^               reduce using rule 80 (expr8 -> NOT expr8 .)
+    %               reduce using rule 80 (expr8 -> NOT expr8 .)
+    /               reduce using rule 80 (expr8 -> NOT expr8 .)
+    *               reduce using rule 80 (expr8 -> NOT expr8 .)
+    -               reduce using rule 80 (expr8 -> NOT expr8 .)
+    +               reduce using rule 80 (expr8 -> NOT expr8 .)
+    GE              reduce using rule 80 (expr8 -> NOT expr8 .)
+    GT              reduce using rule 80 (expr8 -> NOT expr8 .)
+    LE              reduce using rule 80 (expr8 -> NOT expr8 .)
+    LT              reduce using rule 80 (expr8 -> NOT expr8 .)
+    NE              reduce using rule 80 (expr8 -> NOT expr8 .)
+    EQ              reduce using rule 80 (expr8 -> NOT expr8 .)
+    LAND            reduce using rule 80 (expr8 -> NOT expr8 .)
+    LOR             reduce using rule 80 (expr8 -> NOT expr8 .)
+    ;               reduce using rule 80 (expr8 -> NOT expr8 .)
+    )               reduce using rule 80 (expr8 -> NOT expr8 .)
+    ,               reduce using rule 80 (expr8 -> NOT expr8 .)
+    ]               reduce using rule 80 (expr8 -> NOT expr8 .)
+    }               reduce using rule 80 (expr8 -> NOT expr8 .)
 
 
 state 107
@@ -4280,7 +4280,7 @@ state 107
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -4302,7 +4302,7 @@ state 107
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -4483,7 +4483,7 @@ state 122
     IF              reduce using rule 47 (block_stmt -> { stmt_list } .)
     DEC             reduce using rule 47 (block_stmt -> { stmt_list } .)
     INC             reduce using rule 47 (block_stmt -> { stmt_list } .)
-    !               reduce using rule 47 (block_stmt -> { stmt_list } .)
+    NOT             reduce using rule 47 (block_stmt -> { stmt_list } .)
     -               reduce using rule 47 (block_stmt -> { stmt_list } .)
     ARRAY           reduce using rule 47 (block_stmt -> { stmt_list } .)
     (               reduce using rule 47 (block_stmt -> { stmt_list } .)
@@ -4604,7 +4604,7 @@ state 127
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -4631,7 +4631,7 @@ state 127
     FOR             shift and go to state 31
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -4683,7 +4683,7 @@ state 128
     IF              reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
     DEC             reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
     INC             reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
-    !               reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
+    NOT             reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
     -               reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
     ARRAY           reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
     (               reduce using rule 46 (return_stmt -> RETURN opt_expr ; .)
@@ -4726,7 +4726,7 @@ state 131
     IF              reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
     DEC             reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
     INC             reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
-    !               reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
+    NOT             reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
     -               reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
     ARRAY           reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
     (               reduce using rule 45 (print_stmt -> PRINT opt_expr_list ; .)
@@ -4772,7 +4772,7 @@ state 132
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -4792,7 +4792,7 @@ state 132
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -5205,7 +5205,7 @@ state 152
     IF              reduce using rule 6 (decl -> ID : type_func ; .)
     DEC             reduce using rule 6 (decl -> ID : type_func ; .)
     INC             reduce using rule 6 (decl -> ID : type_func ; .)
-    !               reduce using rule 6 (decl -> ID : type_func ; .)
+    NOT             reduce using rule 6 (decl -> ID : type_func ; .)
     -               reduce using rule 6 (decl -> ID : type_func ; .)
     ARRAY           reduce using rule 6 (decl -> ID : type_func ; .)
     (               reduce using rule 6 (decl -> ID : type_func ; .)
@@ -5239,7 +5239,7 @@ state 154
     IF              reduce using rule 7 (decl -> ID : type_array_sized ; .)
     DEC             reduce using rule 7 (decl -> ID : type_array_sized ; .)
     INC             reduce using rule 7 (decl -> ID : type_array_sized ; .)
-    !               reduce using rule 7 (decl -> ID : type_array_sized ; .)
+    NOT             reduce using rule 7 (decl -> ID : type_array_sized ; .)
     -               reduce using rule 7 (decl -> ID : type_array_sized ; .)
     ARRAY           reduce using rule 7 (decl -> ID : type_array_sized ; .)
     (               reduce using rule 7 (decl -> ID : type_array_sized ; .)
@@ -5275,7 +5275,7 @@ state 156
     IF              reduce using rule 8 (decl -> ID : type_simple ; .)
     DEC             reduce using rule 8 (decl -> ID : type_simple ; .)
     INC             reduce using rule 8 (decl -> ID : type_simple ; .)
-    !               reduce using rule 8 (decl -> ID : type_simple ; .)
+    NOT             reduce using rule 8 (decl -> ID : type_simple ; .)
     -               reduce using rule 8 (decl -> ID : type_simple ; .)
     ARRAY           reduce using rule 8 (decl -> ID : type_simple ; .)
     (               reduce using rule 8 (decl -> ID : type_simple ; .)
@@ -5320,7 +5320,7 @@ state 157
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -5340,7 +5340,7 @@ state 157
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -5497,7 +5497,7 @@ state 163
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -5518,7 +5518,7 @@ state 163
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -5579,7 +5579,7 @@ state 164
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -5600,7 +5600,7 @@ state 164
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -5693,7 +5693,7 @@ state 165
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -5720,7 +5720,7 @@ state 165
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -5830,7 +5830,7 @@ state 166
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -5857,7 +5857,7 @@ state 166
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -5912,7 +5912,7 @@ state 167
     IF              reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
     DEC             reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
     INC             reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
-    !               reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
+    NOT             reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
     -               reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
     ARRAY           reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
     (               reduce using rule 30 (if_stmt_closed -> if_cond closed_stmt ELSE closed_stmt .)
@@ -5940,7 +5940,7 @@ state 168
     IF              reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
     DEC             reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
     INC             reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
-    !               reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
+    NOT             reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
     -               reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
     ARRAY           reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
     (               reduce using rule 31 (if_stmt_open -> if_cond closed_stmt ELSE if_stmt_open .)
@@ -6014,7 +6014,7 @@ state 169
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -6041,7 +6041,7 @@ state 169
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -6128,7 +6128,7 @@ state 172
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -6149,7 +6149,7 @@ state 172
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -6189,7 +6189,7 @@ state 173
     IF              reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
     DEC             reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
     INC             reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
-    !               reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
+    NOT             reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
     -               reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
     ARRAY           reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
     (               reduce using rule 29 (if_cond -> IF ( opt_expr ) .)
@@ -6298,7 +6298,7 @@ state 175
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -6326,7 +6326,7 @@ state 175
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -6412,7 +6412,7 @@ state 177
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -6434,7 +6434,7 @@ state 177
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -6550,7 +6550,7 @@ state 185
     IF              reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
     DEC             reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
     INC             reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
-    !               reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
+    NOT             reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
     -               reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
     ARRAY           reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
     (               reduce using rule 36 (while_stmt -> WHILE ( opt_expr ) stmt .)
@@ -6582,7 +6582,7 @@ state 186
     IF              reduce using rule 20 (stmt -> closed_stmt .)
     DEC             reduce using rule 20 (stmt -> closed_stmt .)
     INC             reduce using rule 20 (stmt -> closed_stmt .)
-    !               reduce using rule 20 (stmt -> closed_stmt .)
+    NOT             reduce using rule 20 (stmt -> closed_stmt .)
     -               reduce using rule 20 (stmt -> closed_stmt .)
     ARRAY           reduce using rule 20 (stmt -> closed_stmt .)
     (               reduce using rule 20 (stmt -> closed_stmt .)
@@ -6655,7 +6655,7 @@ state 187
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -6682,7 +6682,7 @@ state 187
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -6733,7 +6733,7 @@ state 188
     IF              reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
     DEC             reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
     INC             reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
-    !               reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
+    NOT             reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
     -               reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
     ARRAY           reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
     (               reduce using rule 44 (print_stmt -> PRINT ( opt_expr_list ) ; .)
@@ -6786,7 +6786,7 @@ state 193
     IF              reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
     DEC             reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
     INC             reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
-    !               reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
+    NOT             reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
     -               reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
     ARRAY           reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
     (               reduce using rule 10 (decl_init -> ID : type_array_sized = array_init ; .)
@@ -6829,7 +6829,7 @@ state 196
     IF              reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
     DEC             reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
     INC             reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
-    !               reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
+    NOT             reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
     -               reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
     ARRAY           reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
     (               reduce using rule 11 (decl_init -> ID : type_simple = expr ; .)
@@ -6958,7 +6958,7 @@ state 205
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -6985,7 +6985,7 @@ state 205
     FOR             shift and go to state 31
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -7064,7 +7064,7 @@ state 207
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -7085,7 +7085,7 @@ state 207
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -7126,7 +7126,7 @@ state 208
     IF              reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
     DEC             reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
     INC             reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
-    !               reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
+    NOT             reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
     -               reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
     ARRAY           reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
     (               reduce using rule 9 (decl_init -> ID : type_func = { opt_stmt_list } .)
@@ -7212,7 +7212,7 @@ state 214
     IF              reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
     DEC             reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
     INC             reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
-    !               reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
+    NOT             reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
     -               reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
     ARRAY           reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
     (               reduce using rule 37 (do_while_stmt -> DO stmt WHILE ( opt_expr ) ; .)
@@ -7240,7 +7240,7 @@ state 215
     IF              reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
     DEC             reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
     INC             reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
-    !               reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
+    NOT             reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
     -               reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
     ARRAY           reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
     (               reduce using rule 38 (do_while_stmt -> DO block_stmt WHILE ( opt_expr ) ; .)
@@ -7314,7 +7314,7 @@ state 216
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -7341,7 +7341,7 @@ state 216
     IF              shift and go to state 32
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25
@@ -7437,7 +7437,7 @@ state 223
     IF              reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
     DEC             reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
     INC             reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
-    !               reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
+    NOT             reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
     -               reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
     ARRAY           reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
     (               reduce using rule 33 (for_header -> FOR ( opt_expr ; opt_expr ; opt_expr ) .)
@@ -7482,7 +7482,7 @@ state 224
     (77) expr8 -> . expr9
     (78) expr8 -> . DEC expr8
     (79) expr8 -> . INC expr8
-    (80) expr8 -> . ! expr8
+    (80) expr8 -> . NOT expr8
     (81) expr8 -> . - expr8
     (82) expr9 -> . group
     (83) expr9 -> . expr9 DEC
@@ -7503,7 +7503,7 @@ state 224
     ID              shift and go to state 70
     DEC             shift and go to state 43
     INC             shift and go to state 44
-    !               shift and go to state 45
+    NOT             shift and go to state 45
     -               shift and go to state 39
     ARRAY           shift and go to state 47
     (               shift and go to state 25

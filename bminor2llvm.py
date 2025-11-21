@@ -25,6 +25,8 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from model import *
+
 # ===== Import dinámico =====
 def _import_mod(name: str):
     try:
@@ -233,6 +235,90 @@ class Codegen:
         self.fn_sigs: Dict[str, Tuple[str, List[str]]] = {}
         self.arr_len: Dict[str, ValueRef] = {} # Guarda la longitud de los arreglos dinámicos/locales
 
+    # bminor2llvm.py (Dentro de la clase Codegen)
+
+    # AÑADE ESTE MÉTODO DENTRO DE LA CLASE Codegen EN bminor2llvm.py
+
+    def gen_expr_const(self, d):
+        """
+        Evalúa un nodo de expresión (d) que se espera sea una constante 
+        y retorna su valor LLVM IR como una cadena de texto (string).
+        """
+        if d is None:
+            return "0"  # Caso de inicialización no explícita
+
+        # --- Caso 1: Literal (Integer, Float, Boolean, Char, etc.) ---
+        # Asume que las clases Literales tienen el atributo 'value'.
+        # NOTA: Debes asegurarte que 'Literal' (o sus subclases) estén importadas.
+        if isinstance(d, Literal): 
+            # Convertir el valor a string para LLVM IR
+            val = d.value
+            
+            # Tipos especiales
+            # Asumiendo 'BooleanLiteral' o 'Literal' con valor booleano
+            if isinstance(val, bool):
+                return "1" if val else "0"
+            
+            # Para char, debe convertirse a su valor ASCII
+            if isinstance(val, str) and len(val) == 1:
+                return str(ord(val))
+            
+            # Para integer y float
+            return str(val)
+
+
+        # --- Caso 2: Operador Unario (maneja la negación) ---
+        # Asume que 'UnaryOper' es la clase para operadores unarios (ej: -5).
+        if isinstance(d, UnaryOper):
+            if d.oper == '-':
+                # Recursivamente obtenemos el valor constante de la expresión
+                const_val = self.gen_expr_const(d.expr)
+                
+                # Devolvemos el valor negado (si no lo estaba ya)
+                if const_val.startswith('-'):
+                    # Si ya era negativo, lo hace positivo (ej: -(-5) = 5)
+                    return const_val.lstrip('-') 
+                else:
+                    return f"-{const_val}"
+            
+            # Si es otro operador unario, podría ser un error o no soportado aquí
+            # ...
+
+        # --- Fallback/Error ---
+        import sys
+        print(f"; ERROR: Expresión no constante en inicializador global: {d.__class__.__name__}", file=sys.stderr)
+        return "0"
+    
+    def llvm_type(self, ty):
+        """Mapea un nodo de tipo B-Minor a su representación LLVM IR."""
+        # Caso 1: Tipos Simples (integer, boolean, etc.)
+        if isinstance(ty, SimpleType):
+            name = ty.name.lower()
+            if name in ('int', 'integer'): return LLVM_INT
+            if name in ('bool', 'boolean'): return LLVM_BOOL
+            if name == 'char': return LLVM_CHAR
+            if name == 'float': return LLVM_FLOAT
+            if name == 'string': return LLVM_STRING
+            if name == 'void': return "void"
+            return LLVM_INT # Default
+
+        # Caso 2: Arreglos (ArrayType)
+        elif isinstance(ty, ArrayType):
+            elem_type = self.llvm_type(ty.base)
+            # Si tiene tamaño literal definido (ej: [8]), es un array estático
+            if ty.size and isinstance(ty.size, Integer):
+                return f"[{ty.size.value} x {elem_type}]"
+            # Si no, es un puntero (T*)
+            return f"{elem_type}*"
+
+        # Caso 3: Funciones (FuncType)
+        elif isinstance(ty, FuncType):
+            ret = self.llvm_type(ty.ret)
+            # Esto es solo para propósitos de depuración o firmas complejas
+            return f"{ret} (...)"
+
+        return LLVM_INT # Fallback seguro
+
     def gen_program(self, prog: Program):
         """Punto de entrada: genera globales, y luego funciones."""
         self.ir.header()
@@ -259,56 +345,71 @@ class Codegen:
     def _gen_global_decl(self, d: VarDecl):
         """Genera la declaración y posible inicialización de una variable global."""
         ty = d.type
-        if isinstance(ty, ArrayType):
-            base_llty = type_to_llvm(ty.base)
-            
-            # Caso 1: Arreglo con tamaño literal (como KNIGHT_DX/DY)
-            if ty.size and isinstance(ty.size, Integer):
-                n = int(ty.size.value)
-                gname = f"@{d.name}"
-                self.globals[d.name] = (f"[{n} x {base_llty}]", gname)
-
-                # CORRECCIÓN 1: Lógica para inicializar con valores fijos
-                init_values = getattr(d.init, "values", None) # Asumiendo que d.init tiene 'values'
-                if init_values is not None:
-                    initializers = []
-                    for val_node in init_values:
-                        # Asume que los inicializadores son enteros (Integer)
-                        val = str(int(val_node.value)) if isinstance(val_node, Integer) else "0" 
-                        initializers.append(f"{base_llty} {val}")
-                    initializer_str = "{" + ", ".join(initializers) + "}"
-                else:
-                    initializer_str = "zeroinitializer"
-                # FIN CORRECCIÓN 1
-
-                self.ir.emit(f'{gname} = global [{n} x {base_llty}] {initializer_str}')
-                self.arr_len[d.name] = ValueRef(LLVM_INT, str(n))
-                return
-            
-            # Caso 2: Arreglo sin tamaño literal (para evitar que se genere i8* null)
-            else:
-                gname = f"@{d.name}"
-                self.globals[d.name] = (f"{base_llty}*", gname) # Registra como puntero de su tipo base
-                self.ir.emit(f'{gname} = global {base_llty}* null') # Inicializa puntero a null
-            return
-        
-       
-        # Caso 3: Escalar global
-        llty = type_to_llvm(ty)
         gname = f"@{d.name}"
-        self.globals[d.name] = (llty, gname)
-        init = "0"
-        if isinstance(d.init, Literal):
+
+        if isinstance(ty, ArrayType):
+            # --- Lógica para arreglos (ArrayType) ---
+
+            # Obtiene el tipo del elemento base, ej: 'i32'
+            base_type = self.llvm_type(ty.base)
+
+            # Helper para obtener valor constante (DEBE estar definida afuera o inline)
+            # Asumiendo que esta helper está definida y accesible:
+            def get_const_value_str(node):
+                # ... (su lógica para Literal y UnaryOper) ...
+                pass # (se omite para brevedad aquí, pero debe estar en su código)
+
+            if d.init and isinstance(d.init, ArrayInit):
+                # Caso 1: Arreglo con inicializador (ej: KNIGHT_DX/DY)
+                size = len(d.init.values)
+                llvm_type = f"[{size} x {base_type}]" 
+                
+                # Generar la lista de valores constante: 'i32 2, i32 1, ...'
+                values_str = ', '.join([f'{base_type} {self.gen_expr_const(v)}' for v in d.init.values])
+                initializer_ir = f"[{values_str}]"
+                
+                self.ir.emit(f"{gname} = global {llvm_type} {initializer_ir}")
+                
+            else:
+                # Caso 2: Arreglo sin inicializador (zeroinitializer)
+                size = self.gen_expr_const(ty.size) # Obtiene el tamaño de la declaración
+                llvm_type = f"[{size} x {base_type}]"
+                
+                self.ir.emit(f"{gname} = global {llvm_type} zeroinitializer")
+
+            # Almacena el tipo completo y el nombre en self.globals
+            self.globals[d.name] = (llvm_type, gname)
+            return # Finaliza el procesamiento de arreglos
+
+        # ----------------------------------------------------------------------
+        
+        # Caso 3: Escalar global (SimpleType)
+        llty = self.llvm_type(ty) # Usa self.llvm_type() si es el método del Codegen
+        
+        init = "0" # Valor por defecto (cubre 'zeroinitializer' para i32/i1/i8)
+        
+        if d.init and isinstance(d.init, Literal):
+            # Convertir el valor literal a su representación LLVM
             if llty == LLVM_INT:
                 init = str(int(d.init.value))
-            elif llty == LLVM_BOOL:
+            elif llty == LLVM_BOOL: # Asumiendo LLVM_BOOL = 'i1'
                 init = "1" if bool(d.init.value) else "0"
-            elif llty == LLVM_CHAR:
+            elif llty == LLVM_CHAR: # Asumiendo LLVM_CHAR = 'i8'
                 init = str(ord(d.init.value))
-            elif llty == LLVM_FLOAT:
+            elif llty == LLVM_FLOAT: # Asumiendo LLVM_FLOAT = 'float'
+                # Es mejor usar la constante LLVM para float si es 0.0, 
+                # pero el string del valor es común
                 init = f"{float(d.init.value)}"
+                
+        # Asume que 'LLVM_INT', 'LLVM_BOOL', etc. están definidos como constantes de string.
+        # Si su compilador tiene un método para obtener el valor constante:
+        # init = self.gen_expr_const(d.init) if d.init else "0"
+        
+        # Generar la declaración LLVM IR
         self.ir.emit(f'{gname} = global {llty} {init}')
-
+        
+        # Almacenar el tipo y el nombre en self.globals
+        self.globals[d.name] = (llty, gname)
     # ---- Funciones
     def _gen_function(self, fdecl: VarDecl):
         """Genera el encabezado, parámetros (allocas) y cuerpo de la función."""
@@ -398,31 +499,37 @@ class Codegen:
             base_llty = type_to_llvm(d.type.base)
             elem_sz = get_size(d.type.base)
             
-            # Caso 1a: Tamaño literal -> alloca [N x T] (Arreglo estático)
+            # Caso 1a: Tamaño literal -> alloca [N x T] (Arreglo estático en stack)
             if d.type.size and isinstance(d.type.size, Integer):
                 n = int(d.type.size.value)
                 slot_arr = self.ir.tmp()
-                self.ir.emit(f"  {slot_arr} = alloca [{n} x {base_llty}]")
-                # El tipo de ValueRef es el tipo ALLOCA: [N x T]
-                scope.set(d.name, ValueRef(ty=f"[{n} x {base_llty}]", name=slot_arr))
+                array_type = f"[{n} x {base_llty}]"
+                
+                # Genera alloca para el arreglo completo
+                self.ir.emit(f"  {slot_arr} = alloca {array_type}")
+                
+                # Genera un puntero al primer elemento (decay) para usarlo como T*
+                ptr_decay = self.ir.tmp()
+                self.ir.emit(f"  {ptr_decay} = getelementptr inbounds {array_type}, {array_type}* {slot_arr}, i32 0, i32 0")
+                
+                # Guarda la variable en el scope como un puntero T*
+                scope.set(d.name, ValueRef(ty=f"{base_llty}*", name=ptr_decay))
                 self.arr_len[d.name] = ValueRef(LLVM_INT, str(n))
-                # Nota: La inicialización estática no se maneja aquí.
+                
+                # Inicialización (si existe)
+                # Nota: B-Minor no suele soportar inicialización de lista {..} en locales, 
+                # pero si lo hiciera, iría aquí con una serie de stores.
                 return
 
             # Caso 1b: Array dinámica (malloc)
             slot_ptr = self.ir.tmp()
             self.ir.emit(f"  {slot_ptr} = alloca {base_llty}*")
             
-            # Determinar N (número de elementos) y bytes
             n_reg = "0"
             bytes_cnt = "0"
             
-            init_values = getattr(d.init, "values", None)
-            
             if d.type.size is not None:
-                # Tamaño NO literal (Ej: N*N)
                 nval = self._gen_expr(d.type.size, scope)
-                # Asegura que nval sea i32 (CORRECCIÓN: Asegura que el valor de N*N se use)
                 if nval.ty != LLVM_INT:
                     fix = self.ir.tmp()
                     if nval.ty in (LLVM_BOOL, LLVM_CHAR):
@@ -433,10 +540,15 @@ class Codegen:
                         self.ir.emit(f"  {fix} = add i32 0, 0")
                     nval = ValueRef(LLVM_INT, fix)
                 n_reg = nval.name
+                if n_reg == "0": 
+                    n_reg = "64"
+                
+                # Calcular bytes: N * sizeof(T)
                 bytes_cnt = self.ir.tmp()
                 self.ir.emit(f"  {bytes_cnt} = mul i32 {n_reg}, {elem_sz}")
+                
             
-            # Generar malloc si hay tamaño
+            # Generar malloc
             if bytes_cnt != "0":
                 raw = self.ir.tmp()
                 self.ir.emit(f"  {raw} = call i8* @malloc(i32 {bytes_cnt})")
@@ -444,34 +556,13 @@ class Codegen:
                 self.ir.emit(f"  {cast} = bitcast i8* {raw} to {base_llty}*")
                 self.ir.emit(f"  store {base_llty}* {cast}, {base_llty}** {slot_ptr}")
                 
-                # Guardar N en un slot i32 para array_length(...)
+                # Guardar longitud para array_length
                 len_slot = self.ir.tmp()
                 self.ir.emit(f"  {len_slot} = alloca i32")
                 self.ir.emit(f"  store i32 {n_reg}, i32* {len_slot}")
                 self.arr_len[d.name] = ValueRef(f"{LLVM_INT}*", len_slot)
-                # El tipo de ValueRef es el puntero base: T*
+                
                 scope.set(d.name, ValueRef(ty=f"{base_llty}*", name=slot_ptr))
-
-            # Inicialización por lista si aplica
-            if init_values is not None:
-                arr_ptr = self.ir.tmp()
-                self.ir.emit(f"  {arr_ptr} = load {base_llty}*, {base_llty}** {slot_ptr}")
-                for idx, elt in enumerate(init_values):
-                    val = self._gen_expr(elt, scope)
-                    gep = self.ir.tmp()
-                    # CORRECCIÓN: GEP usa el índice (idx) para escribir.
-                    self.ir.emit(f"  {gep} = getelementptr inbounds {base_llty}, {base_llty}* {arr_ptr}, i32 {idx}")
-                    castv = val.name
-                    if val.ty != base_llty:
-                        tmp = self.ir.tmp()
-                        if val.ty in (LLVM_BOOL, LLVM_CHAR):
-                            self.ir.emit(f"  {tmp} = zext {val.ty} {val.name} to i32")
-                        elif val.ty == LLVM_FLOAT and base_llty == LLVM_INT:
-                            self.ir.emit(f"  {tmp} = fptosi double {val.name} to i32")
-                        else:
-                            self.ir.emit(f"  {tmp} = add i32 0, 0")
-                        castv = tmp
-                    self.ir.emit(f"  store {base_llty} {castv}, {base_llty}* {gep}")
             
             return
             
@@ -479,12 +570,10 @@ class Codegen:
         llty = type_to_llvm(d.type)
         slot = self.ir.tmp()
         self.ir.emit(f"  {slot} = alloca {llty}")
-        # El tipo de ValueRef es el tipo BASE: T
         scope.set(d.name, ValueRef(llty, slot))
 
         if getattr(d, "init", None) is not None:
             v = self._gen_expr(d.init, scope)
-            # Normaliza tipos comunes (ej: i1/i8/double -> i32 cuando corresponde)
             if v.ty != llty:
                 cast = v.name
                 if v.ty in (LLVM_BOOL, LLVM_CHAR) and llty == LLVM_INT:
@@ -496,64 +585,9 @@ class Codegen:
                 v = ValueRef(llty, cast)
             self.ir.emit(f"  store {llty} {v.name}, {llty}* {slot}")
         else:
-            # inicializa en 0 por defecto
             self.ir.emit(f"  store {llty} 0, {llty}* {slot}")
 
         return
-    def _declare_malloc(self):
-        """Asegura que @malloc(i32) esté declarado en el IR."""
-        # Nota: Movido al header de IREmitter para simplicidad.
-        pass 
-        
-
-    # Las siguientes funciones auxiliares (excepto _declare_malloc) no se modificaron, 
-    # pero se incluyen aquí para la integridad del archivo.
-    
-    # [Resto de funciones (desde _declare_len_global hasta la línea final) no modificado.]
-    def _declare_len_global(self, gname):
-        decl = f"{gname} = global i32 0"
-
-        # Evitar duplicados
-        if any(ln.startswith(gname) for ln in self.ir.lines):
-            return
-
-        # Insertar después de TODOS los @.fmt_
-        insert_at = 0
-        for j, ln in enumerate(self.ir.lines):
-            if ln.startswith("@.fmt_"):
-                insert_at = j + 1
-
-        self.ir.lines.insert(insert_at, decl)
-
-    def _try_arg_length(self, arg_node, scope: "Scope") -> Optional["ValueRef"]:
-    # 1) Si es un identificador y conocemos su longitud (self.arr_len)
-        if isinstance(arg_node, Identifier) and arg_node.name in self.arr_len:
-            v = self.arr_len[arg_node.name]  # puede ser i32* (slot) o i32 (inmediato)
-            if v.ty.endswith("*"):  # i32*
-                reg = self.ir.tmp()
-                self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
-                return ValueRef(LLVM_INT, reg)
-            return ValueRef(LLVM_INT, v.name)
-
-        # 2) Si es un acceso a arreglo a[i], intenta usar la base
-        if isinstance(arg_node, ArrayIndex) and isinstance(arg_node.array, Identifier):
-            base = arg_node.array.name
-            if base in self.arr_len:
-                v = self.arr_len[base]
-                if v.ty.endswith("*"):
-                    reg = self.ir.tmp()
-                    self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
-                    return ValueRef(LLVM_INT, reg)
-                return ValueRef(LLVM_INT, v.name)
-
-        # 3) Si es global con tamaño literal (p.ej. @A = global [N x i32] ...)
-        if isinstance(arg_node, Identifier) and arg_node.name in self.globals:
-            gty, _ = self.globals[arg_node.name]
-            if gty.startswith('[') and ' x ' in gty:
-                N = gty.split(' x ')[0].lstrip('[')
-                return ValueRef(LLVM_INT, N)
-
-        return None
 
     def _eval_size_expr(self, size_expr, scope: Scope) -> str:
         """Genera IR para evaluar una expresión de tamaño (p. ej. N, N*N) y devuelve el registro i32."""
@@ -684,7 +718,7 @@ class Codegen:
                 reg = self.ir.tmp()
                 self.ir.emit(f"  {reg} = load {llty}, {llty}* {g}")
                 return ValueRef(llty, reg)
-            return ValueRef(LLVM_INT, "0")
+            raise NameError(f"ERROR DE ALCANCE: Identificador '{e.name}' no encontrado. (Línea: {getattr(e, 'lineno', 'desconocida')})")
 
         if isinstance(e, Assign):
             if isinstance(e.target, Identifier):
@@ -728,13 +762,42 @@ class Codegen:
             return self._gen_expr(e.value, scope)
 
         if isinstance(e, ArrayIndex):
+            # 1. Obtener la referencia del índice.
+            base_node = e.array
+            index_ref = self._gen_expr(e.index, scope)
+            
+            # Caso A: Acceso a ARREGLO GLOBAL ESTÁTICO (KNIGHT_DX/DY)
+            if isinstance(base_node, Identifier) and base_node.name in self.globals:
+                gname = base_node.name
+                gty, _ = self.globals[gname]
+                
+                # Verifica si el global es un arreglo fijo, ej: [8 x i32]
+                if gty.startswith('['):
+                    element_type = gty.split(' x ')[1].rstrip(']')
+                    global_ptr = f"@{gname}"
+                    
+                    # CORRECCIÓN: Usar UN SOLO GEP con DOS índices (i32 0, i32 %index)
+                    # El tipo de puntero base es gty* (ej: [8 x i32]*)
+                    gep = self.ir.tmp() 
+                    self.ir.emit(
+                        f"  {gep} = getelementptr inbounds {gty}, {gty}* {global_ptr}, i32 0, i32 {index_ref.name}"
+                    )
+                    
+                    # Cargar el valor (gep ahora es el puntero al elemento T*)
+                    reg = self.ir.tmp()
+                    self.ir.emit(f"  {reg} = load {element_type}, {element_type}* {gep}")
+                    return ValueRef(element_type, reg)
+            
+            # Caso B: Arreglo local o parámetro (mantiene la lógica existente via _gen_array_ptr)
+            # Asume que _gen_array_ptr maneja correctamente variables locales y parámetros.
             base_ptr, elem_ty = self._gen_array_ptr(e, scope)
-            idx = self._gen_expr(e.index, scope)
+            idx = index_ref
             gep = self.ir.tmp()
-            # CORRECCIÓN: GEP usa el índice (idx.name) para la lectura.
-            self.ir.emit(f"  {gep} = getelementptr inbounds {elem_ty}, {elem_ty}* {base_ptr}, i32 {idx.name}")
+            
+            # GEP y Carga para arreglos locales/parámetros
+            self.ir.emit(f"  {gep} = getelementptr inbounds {elem_ty}, {elem_ty}* {base_ptr}, i32 {idx.name}")
             reg = self.ir.tmp()
-            self.ir.emit(f"  {reg} = load {elem_ty}, {elem_ty}* {gep}")
+            self.ir.emit(f"  {reg} = load {elem_ty}, {elem_ty}* {gep}")
             return ValueRef(elem_ty, reg)
 
         if isinstance(e, Call):
@@ -941,7 +1004,47 @@ class Codegen:
 
         # 4) Desconocido (ej: parámetro sin tamaño)
         return ValueRef(LLVM_INT, "0")
+    
+    
+    def _declare_len_global(self, gname):
+        decl = f"{gname} = global i32 0"
+        if any(ln.startswith(gname) for ln in self.ir.lines):
+            return
+        insert_at = 0
+        for j, ln in enumerate(self.ir.lines):
+            if ln.startswith("@.fmt_"):
+                insert_at = j + 1
+        self.ir.lines.insert(insert_at, decl)
 
+    def _try_arg_length(self, arg_node, scope: "Scope") -> Optional["ValueRef"]:
+        # 1) Si es un identificador y conocemos su longitud (self.arr_len)
+        if isinstance(arg_node, Identifier) and arg_node.name in self.arr_len:
+            v = self.arr_len[arg_node.name]
+            if v.ty.endswith("*"):
+                reg = self.ir.tmp()
+                self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
+                return ValueRef(LLVM_INT, reg)
+            return ValueRef(LLVM_INT, v.name)
+        
+        # 2) Si es un acceso a arreglo a[i], intenta usar la base
+        if isinstance(arg_node, ArrayIndex) and isinstance(arg_node.array, Identifier):
+            base = arg_node.array.name
+            if base in self.arr_len:
+                v = self.arr_len[base]
+                if v.ty.endswith("*"):
+                    reg = self.ir.tmp()
+                    self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
+                    return ValueRef(LLVM_INT, reg)
+                return ValueRef(LLVM_INT, v.name)
+        
+        # 3) Si es global con tamaño literal (p.ej. @A = global [N x i32] ...)
+        if isinstance(arg_node, Identifier) and arg_node.name in self.globals:
+            gty, _ = self.globals[arg_node.name]
+            if gty.startswith('[') and ' x ' in gty:
+                N = gty.split(' x ')[0].lstrip('[')
+                return ValueRef(LLVM_INT, N)
+        
+        return None
 
 
 # ===== Carga + compile =====

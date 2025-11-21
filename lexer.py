@@ -14,7 +14,8 @@ class Lexer(sly.Lexer):           # El lexer hereda de sly.Lexer
 
         # Operadores compuestos
         LT, LE, GT, GE, EQ, NE,   # Relacionales: < <= > >= == !=
-        LAND, LOR,                # Lógicos: && ||
+        LAND, LOR,   
+        NOT,             # Lógicos: && ||
         INC, DEC,                 # ++ --
 
         # Literales (tokens con valor asociado)
@@ -98,6 +99,7 @@ class Lexer(sly.Lexer):           # El lexer hereda de sly.Lexer
     DEC  = r'--'                   # --
     LT   = r'<'                    # <
     GT   = r'>'                    # >
+    NOT  = r'!'                    # !
 
     # -----------------------------
     # Errores específicos primero
