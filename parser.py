@@ -416,7 +416,7 @@ class Parser(sly.Parser):
     @_("ARRAY index type_array_sized")
     def type_array_sized(self, p):
         base = SimpleType(name=p.type_simple) if hasattr(p, "type_simple") else p.type_array_sized
-        return ArrayType(base=base, size=p.index)
+        return ArrayType(base=base, size=p[1])
 
     @_("FUNCTION type_simple '(' opt_param_list ')'")
     @_("FUNCTION type_array_sized '(' opt_param_list ')'")
