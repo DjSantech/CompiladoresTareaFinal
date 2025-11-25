@@ -39,9 +39,30 @@ class AttributeError(Exception):
 class CallError(Exception):
   pass
 
+# --- CLASE PARA FUNCIONES BUILT-IN ---
+class Builtin:
+    def __init__(self, fn, arity):
+        self._fn = fn
+        self.arity = arity
+        
+    def __call__(self, interp, *args):
+        try:
+            return self._fn(*args)
+        except Exception as e:
+            raise CallError(f"Error en la función built-in: {e}")
+
+# Implementación de la lógica de array_length
+def array_length_impl(arr):
+    if not isinstance(arr, list):
+        raise Exception("El argumento de 'array_length' debe ser un array.")
+    return len(arr)
+
+
 # --- VARIABLES GLOBALES ---
 consts = {}
-builtins = {}
+builtins = {
+    'array_length': Builtin(array_length_impl, 1) 
+}
 
 # --- CLASE DE CONTEXTO DE ERRORES ---
 class Context:
@@ -75,7 +96,8 @@ class Function:
     return len(getattr(self.node, 'params', []))
 
   def __call__(self, interp, *args):
-    newenv = self.env.new_child()
+    # Crear nuevo entorno como hijo del entorno actual del intérprete
+    newenv = interp.env.new_child()
     
     if isinstance(self.node, VarDecl) and isinstance(self.node.type, FuncType):
       params = self.node.type.params or []
@@ -89,6 +111,7 @@ class Function:
 
     oldenv = interp.env
     interp.env = newenv
+    
     try:
       if isinstance(self.node, VarDecl) and isinstance(self.node.init, Block):
         self.node.init.accept(interp)
@@ -99,6 +122,7 @@ class Function:
       result = e.value
     finally:
       interp.env = oldenv
+    
     return result
 
   def bind(self, instance):
@@ -263,29 +287,34 @@ class Interpreter(Visitor):
         self.error(node, f"Variable no definida '{node.target.name}'")
     
     elif isinstance(node.target, ArrayIndex):
-      if isinstance(node.target.array, Identifier):
-        arr = self.env.get(node.target.array.name)
-        if arr is None:
-          self.error(node, f"Array no definido '{node.target.array.name}'")
-          return value
-
-        index_expr = node.target.index
-        if hasattr(index_expr, 'accept'):
-            idx = index_expr.accept(self)
-        else:
-            idx = index_expr
-            
-        if not isinstance(idx, int):
-          self.error(node, f"Índice debe ser entero")
-          return value
-        if not isinstance(arr, list):
-          self.error(node, f"'{node.target.array.name}' no es un array")
-          return value
-        if idx < 0 or idx >= len(arr):
-          self.error(node, f"Índice fuera de rango: {idx}")
-          return value
+      # Evaluar el array
+      if hasattr(node.target.array, 'accept'):
+        arr = node.target.array.accept(self)
+      else:
+        arr = node.target.array
         
-        arr[idx] = value
+      if arr is None:
+        self.error(node, f"Array no definido")
+        return value
+
+      # Evaluar el índice
+      index_expr = node.target.index
+      if hasattr(index_expr, 'accept'):
+        idx = index_expr.accept(self)
+      else:
+        idx = index_expr
+            
+      if not isinstance(idx, int):
+        self.error(node, f"Índice debe ser entero")
+        return value
+      if not isinstance(arr, list):
+        self.error(node, f"No es un array")
+        return value
+      if idx < 0 or idx >= len(arr):
+        self.error(node, f"Índice fuera de rango: {idx}")
+        return value
+      
+      arr[idx] = value
     
     return value
 
@@ -464,33 +493,33 @@ class Interpreter(Visitor):
   def visit(self, node: Identifier):
     """Identificador (variable)"""
     if node.name in self.env:
-      value = self.env[node.name]
-      
-      # Coerción de flotante a entero si se accede numéricamente
-      if isinstance(value, float):
-          return int(value)
-          
-      return value
+      return self.env[node.name]
     else:
       self.error(node, f"Variable no definida '{node.name}'")
 
   def visit(self, node: ArrayIndex):
-    arr = self.env.get(node.array.name) if isinstance(node.array, Identifier) else (node.array.accept(self) if hasattr(node.array, 'accept') else node.array)
+    """Acceso a elemento de array"""
+    # Evaluar el array
+    if hasattr(node.array, 'accept'):
+      arr = node.array.accept(self)
+    else:
+      arr = node.array
     
     if not isinstance(arr, list):
-      self.error(node, f"No es un array")
+      array_name = node.array.name if isinstance(node.array, Identifier) else "expresión"
+      self.error(node, f"'{array_name}' no es un array")
     
-    index_expr = node.index
-    if hasattr(index_expr, 'accept'):
-        idx = index_expr.accept(self)
+    # Evaluar el índice
+    if hasattr(node.index, 'accept'):
+      idx = node.index.accept(self)
     else:
-        idx = index_expr
-        
+      idx = node.index
+    
     if not isinstance(idx, int):
       self.error(node, f"Índice debe ser entero")
     
     if idx < 0 or idx >= len(arr):
-      self.error(node, f"Índice fuera de rango: {idx}")
+      self.error(node, f"Índice fuera de rango: {idx} (tamaño: {len(arr)})")
     
     return arr[idx]
 
