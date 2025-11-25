@@ -239,9 +239,9 @@ class Parser(sly.Parser):
     def lval(self, p):
         return _L(Identifier(name=p.ID), p.lineno)
 
-    @_("ID index")
+    @_("ID '[' expr ']'")
     def lval(self, p):
-        return _L(ArrayIndex(array=Identifier(name=p.ID), index=p.index), p.lineno)
+        return _L(ArrayIndex(array=Identifier(name=p.ID), index=p.expr), p.lineno)
 
     @_("expr2 LOR expr3")
     def expr2(self, p):
@@ -342,9 +342,9 @@ class Parser(sly.Parser):
     def group(self, p):
         return _L(Call(func=Identifier(name=p.ID), args=p.opt_expr_list), p.lineno)
 
-    @_("ID index")                  # acceso a arreglo
+    @_("ID '[' expr ']'")
     def group(self, p):
-        return _L(ArrayIndex(array=Identifier(name=p.ID), index=p.index), p.lineno)
+        return _L(ArrayIndex(array=Identifier(name=p.ID), index=p.expr), p.lineno)
 
     @_("factor")
     def group(self, p):
