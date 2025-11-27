@@ -5,7 +5,7 @@
  *                                                 *
  * =============================================== */
 
-N: integer = 8; // tamaño del tablero
+N: integer = 5; // tamaño del tablero
 
 index: function integer (x: integer, y:integer) = {
 	return x * N + y;
@@ -33,7 +33,9 @@ can_move: function boolean (x:integer, y:integer, board: array [] integer) = {
 
 // Funcion recursiva para recorrer el caballo el tablero
 walk: function boolean (x: integer, y: integer, m: integer, board: array [] integer, xmoves: array [] integer, ymoves: array [] integer) = {
-	i: integer;
+	i: integer = 0;
+	
+	board[index(x, y)] = m;  // ← AGREGAR ESTA LÍNEA AL INICIO
 	
 	if (m == N * N) {
 		print_board(board);
@@ -44,11 +46,11 @@ walk: function boolean (x: integer, y: integer, m: integer, board: array [] inte
 		next_x: integer = x + xmoves[i];
 		next_y: integer = y + ymoves[i];
 		if (can_move(next_x, next_y, board)) {
-			board[index(next_x, next_y)] = m;
+			board[index(next_x, next_y)] = m + 1;
 			if (walk(next_x, next_y, m+1, board, xmoves, ymoves)) {
 				return true;
 			}
-			board[index(next_x, next_y)] = -1;
+			board[index(next_x, next_y)] = 0;  // ← CAMBIAR -1 por 0
 		}
 	}
 	return false;
