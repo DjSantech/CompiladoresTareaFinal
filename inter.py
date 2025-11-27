@@ -10,6 +10,7 @@ from model       import *
 from checker     import *
 from typesys     import *
 
+sys.setrecursionlimit(10000)  # Aumentar límite de recursión
 # Veracidad en bminor
 def _is_truthy(value):
   if isinstance(value, bool):
@@ -198,9 +199,19 @@ class Interpreter(Visitor):
           self.env[node.name] = expr
       else:
         if isinstance(node.type, ArrayType):
-          if node.type.size and isinstance(node.type.size, Integer):
-            size = node.type.size.value
-            self.env[node.name] = [0] * size
+          if node.type.size:
+            # Evaluar la expresión del tamaño
+            if isinstance(node.type.size, Integer):
+              size = node.type.size.value
+            elif hasattr(node.type.size, 'accept'):
+              size = node.type.size.accept(self)
+            else:
+              size = node.type.size
+            
+            if isinstance(size, int) and size > 0:
+              self.env[node.name] = [0] * size
+            else:
+              self.env[node.name] = []
           else:
             self.env[node.name] = []
         else:
@@ -319,6 +330,24 @@ class Interpreter(Visitor):
     return value
 
   def visit(self, node: BinOper):
+    # Para operadores de cortocircuito, evaluar left primero
+    if node.oper == '||':
+      left = node.left.accept(self) if hasattr(node.left, 'accept') else node.left
+      if _is_truthy(left):
+        return left
+      else:
+        right = node.right.accept(self) if hasattr(node.right, 'accept') else node.right
+        return right
+    
+    elif node.oper == '&&':
+      left = node.left.accept(self) if hasattr(node.left, 'accept') else node.left
+      if not _is_truthy(left):
+        return left
+      else:
+        right = node.right.accept(self) if hasattr(node.right, 'accept') else node.right
+        return right
+    
+    # Para el resto de operadores, evaluar ambos lados
     left  = node.left.accept(self) if hasattr(node.left, 'accept') else node.left
     right = node.right.accept(self) if hasattr(node.right, 'accept') else node.right
 
@@ -374,12 +403,6 @@ class Interpreter(Visitor):
     elif node.oper == '>=':
       self._check_numeric_operands(node, left, right)
       return left >= right
-    
-    elif node.oper == '||':
-      return left if _is_truthy(left) else right
-    
-    elif node.oper == '&&':
-      return right if _is_truthy(left) else left
 
     else:
       raise NotImplementedError(f"Mal operador {node.oper}")
