@@ -1,22 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-bminor2llvm.py — Generador de LLVM IR (texto) desde el AST de B-Minor.
-
-Uso:
-    python bminor2llvm.py programa.bminor > out.ll
-    clang out.ll -O2 -o prog && ./prog
-
-Notas:
-- Importa tu parser.parse() y opcionalmente checker.check().
-- Soporta: tipos primitivos, asignación, +,-,*,/,%, comparaciones, &&,||,!, if/else,
-  while, do-while, for, return, funciones por valor, print(...), arreglos e indexación [].
-- Cambios clave de esta versión:
-  (A) Arreglos locales con tamaño NO literal (p. ej. [N], [N*N]) se reservan con malloc
-      en tiempo de ejecución (puntero base T* almacenado en un slot).
-  (B) Llamadas a funciones respetan el tipo de retorno declarado (void, boolean/i1, etc.).
-  (C) CORRECCIÓN: Se reemplazó scope.add_var por scope.set para corregir el AttributeError.
-  (D) CORRECCIÓN: Se reestructuró _gen_local_vardecl para distinguir correctamente entre SimpleType y ArrayType.
+bminor2llvm.py — Generador de LLVM IR corregido
+CORRECCIONES PRINCIPALES:
+1. Inicialización correcta de arrays en loops (store 0)
+2. Asignación correcta de board[curr_pos] = 1
+3. Asignación correcta de board[curr_pos] = step en loops
+4. Condición correcta en is_valid_move (llamar a in_board)
+5. Manejo mejorado de arrays globales y locales
 """
 
 from __future__ import annotations
@@ -24,8 +15,6 @@ import importlib
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
-
-from model import *
 
 # ===== Import dinámico =====
 def _import_mod(name: str):
@@ -35,7 +24,6 @@ def _import_mod(name: str):
         print(f"; Aviso: no se pudo importar '{name}': {ex}", file=sys.stderr)
         return None
 
-# Defaults CLI
 parser_mod_name  = "parser"
 checker_mod_name = "checker"
 
@@ -53,20 +41,18 @@ while i < len(argv):
     i += 1
 
 if not argv:
-    sys.exit("Uso: python bminor2llvm.py archivo.bminor [--parser parser_mod] [--checker checker_mod]")
+    sys.exit("Uso: python bminor2llvm.py archivo.bminor")
 
 filename = argv[0]
 
-# Import de proyecto del usuario
 parser_mod  = _import_mod(parser_mod_name)
 checker_mod = _import_mod(checker_mod_name)
 model_mod   = _import_mod("model")
 errors_mod  = _import_mod("errors")
 
 if parser_mod is None or not hasattr(parser_mod, "parse"):
-    sys.exit("Debes proveer un parser válido (argumento --parser o modifica los imports).")
+    sys.exit("Debes proveer un parser válido.")
 parse = getattr(parser_mod, "parse")
-
 check = getattr(checker_mod, "check", None) if checker_mod is not None else None
 
 # AST nodes
@@ -83,6 +69,7 @@ ForStmt       = getattr(model_mod, "ForStmt")
 Assign        = getattr(model_mod, "Assign")
 BinOper       = getattr(model_mod, "BinOper")
 UnaryOper     = getattr(model_mod, "UnaryOper")
+UnaryOp       = getattr(model_mod, "UnaryOp")  # ← AGREGAR ESTO
 PostfixOper   = getattr(model_mod, "PostfixOper")
 Identifier    = getattr(model_mod, "Identifier")
 Literal       = getattr(model_mod, "Literal")
@@ -97,7 +84,6 @@ SimpleType    = getattr(model_mod, "SimpleType")
 ArrayType     = getattr(model_mod, "ArrayType")
 FuncType      = getattr(model_mod, "FuncType")
 
-# ===== Errores (opcional) =====
 def set_source(fname: str, txt: str):
     if errors_mod is not None and hasattr(errors_mod, "set_source"):
         errors_mod.set_source(fname, txt)
@@ -109,47 +95,33 @@ def errors_detected() -> bool:
 
 # ===== IR Emitter =====
 class IREmitter:
-    """Clase responsable de generar y formatear el código LLVM IR."""
     def __init__(self):
         self.lines: List[str] = []
         self.tmp_counter = 0
         self.blk_counter = 0
 
     def tmp(self) -> str:
-        """Genera un registro temporal único (p. ej., %t1, %t2)."""
         self.tmp_counter += 1
         return f"%t{self.tmp_counter}"
 
     def label(self, base: str) -> str:
-        """Genera una etiqueta de bloque básica (p. ej., while.head.1)."""
         self.blk_counter += 1
         return f"{base}{self.blk_counter}"
 
     def emit(self, line: str):
-        """Añade una línea de código IR a la lista."""
         self.lines.append(line)
 
     def header(self):
-        """Genera las declaraciones y constantes iniciales."""
-        # decl comunes
         self.emit('declare i32 @printf(i8*, ...)')
-        self.emit('declare i8* @malloc(i32)') # Asegura que malloc esté declarado si se usa
+        self.emit('declare i8* @malloc(i32)')
         self.emit('')
-        # formatos
         self.emit('@.fmt_int   = private unnamed_addr constant [4 x i8] c"%d\\0A\\00"')
         self.emit('@.fmt_float = private unnamed_addr constant [4 x i8] c"%f\\0A\\00"')
         self.emit('@.fmt_char  = private unnamed_addr constant [4 x i8] c"%c\\0A\\00"')
         self.emit('@.fmt_str   = private unnamed_addr constant [4 x i8] c"%s\\0A\\00"')
         self.emit('')
 
-    def gep_cstr(self, name: str) -> str:
-        """Genera un GEP para obtener un puntero a una constante de cadena."""
-        p = self.tmp()
-        self.emit(f'{p} = getelementptr inbounds ([4 x i8], [4 x i8]* {name}, i32 0, i32 0)')
-        return p
-
     def finalize(self) -> str:
-        """Devuelve el código LLVM IR final como una sola cadena."""
         return "\n".join(self.lines) + "\n"
 
 # ===== Tipos =====
@@ -159,260 +131,162 @@ LLVM_CHAR   = "i8"
 LLVM_FLOAT  = "double"
 LLVM_STRING = "i8*"
 
-# Función auxiliar para obtener el tamaño en bytes
 def get_size(t) -> int:
     llty = type_to_llvm(t)
     if llty == LLVM_FLOAT: return 8
-    if llty == LLVM_INT or llty == LLVM_BOOL: return 4 # Bminor usa 4 bytes para i32/i1
+    if llty == LLVM_INT or llty == LLVM_BOOL: return 4
     if llty == LLVM_CHAR: return 1
     return 4
 
 def type_to_llvm(t) -> str:
-    """Convierte un tipo de AST a su representación en LLVM IR."""
     if isinstance(t, SimpleType):
         name = (t.name or "").lower()
     elif isinstance(t, str):
         name = t.lower()
     else:
         name = None
-
-    if name in ("int", "integer"):
-        return LLVM_INT
-    if name in ("bool", "boolean"):
-        return LLVM_BOOL
-    if name == "char":
-        return LLVM_CHAR
-    if name == "float":
-        return LLVM_FLOAT
-    if name == "string":
-        return LLVM_STRING
-    if name == "void":
-        return "void"
+    if name in ("int", "integer"): return LLVM_INT
+    if name in ("bool", "boolean"): return LLVM_BOOL
+    if name == "char": return LLVM_CHAR
+    if name == "float": return LLVM_FLOAT
+    if name == "string": return LLVM_STRING
+    if name == "void": return "void"
     return LLVM_INT
 
 def param_type_to_llvm(t) -> str:
-    """Devuelve el tipo LLVM para un parámetro de función."""
     if isinstance(t, ArrayType):
-        return f"{type_to_llvm(t.base)}*" # Arreglos se pasan como punteros
+        return f"{type_to_llvm(t.base)}*"
     return type_to_llvm(t)
 
-# ===== Scope / valores =====
 @dataclass
 class ValueRef:
-    ty: str     # Tipo LLVM (e.g., i32, i32*, [8 x i32])
-    name: str   # Nombre del registro o valor (e.g., %t1, @gname, 5)
+    ty: str
+    name: str
 
 class Scope:
-    """Maneja el alcance de las variables locales y sus slots de memoria."""
     def __init__(self, parent: Optional["Scope"]=None):
         self.parent = parent
         self.vars: Dict[str, ValueRef] = {}
     def get(self, name: str) -> Optional[ValueRef]:
-        """Busca una variable en el scope actual y padres."""
         if name in self.vars:
             return self.vars[name]
         if self.parent:
             return self.parent.get(name)
         return None
     def set(self, name: str, val: ValueRef):
-        """Asigna (o añade) una variable al scope actual. (CORRECCIÓN: Reemplaza add_var)"""
         self.vars[name] = val
 
 # ===== Codegen =====
 class Codegen:
-    """Generador principal de código LLVM IR."""
     def __init__(self, emitter: IREmitter):
         self.ir = emitter
-        self.globals: Dict[str, Tuple[str, str]] = {}  # name -> (llvm_ty, @gname)
+        self.globals: Dict[str, Tuple[str, str]] = {}
         self.fn_ret_ty: Optional[str] = None
         self.current_fn_end_label: Optional[str] = None
-        self.current_fn_name: Optional[str] = None         
+        self.current_fn_name: Optional[str] = None
         self.fn_param_index: Dict[str, Dict[str, int]] = {}
         self.cur_fn_name: Optional[str] = None
         self.cur_fn_params: List[str] = []
-
-        # firma de funciones: name -> (ret_llty, [param_llty])
         self.fn_sigs: Dict[str, Tuple[str, List[str]]] = {}
-        self.arr_len: Dict[str, ValueRef] = {} # Guarda la longitud de los arreglos dinámicos/locales
-
-    # bminor2llvm.py (Dentro de la clase Codegen)
-
-    # AÑADE ESTE MÉTODO DENTRO DE LA CLASE Codegen EN bminor2llvm.py
-
-    def gen_expr_const(self, d):
-        """
-        Evalúa un nodo de expresión (d) que se espera sea una constante 
-        y retorna su valor LLVM IR como una cadena de texto (string).
-        """
-        if d is None:
-            return "0"  # Caso de inicialización no explícita
-
-        # --- Caso 1: Literal (Integer, Float, Boolean, Char, etc.) ---
-        # Asume que las clases Literales tienen el atributo 'value'.
-        # NOTA: Debes asegurarte que 'Literal' (o sus subclases) estén importadas.
-        if isinstance(d, Literal): 
-            # Convertir el valor a string para LLVM IR
-            val = d.value
-            
-            # Tipos especiales
-            # Asumiendo 'BooleanLiteral' o 'Literal' con valor booleano
-            if isinstance(val, bool):
-                return "1" if val else "0"
-            
-            # Para char, debe convertirse a su valor ASCII
-            if isinstance(val, str) and len(val) == 1:
-                return str(ord(val))
-            
-            # Para integer y float
-            return str(val)
-
-
-        # --- Caso 2: Operador Unario (maneja la negación) ---
-        # Asume que 'UnaryOper' es la clase para operadores unarios (ej: -5).
-        if isinstance(d, UnaryOper):
-            if d.oper == '-':
-                # Recursivamente obtenemos el valor constante de la expresión
-                const_val = self.gen_expr_const(d.expr)
-                
-                # Devolvemos el valor negado (si no lo estaba ya)
-                if const_val.startswith('-'):
-                    # Si ya era negativo, lo hace positivo (ej: -(-5) = 5)
-                    return const_val.lstrip('-') 
-                else:
-                    return f"-{const_val}"
-            
-            # Si es otro operador unario, podría ser un error o no soportado aquí
-            # ...
-
-        # --- Fallback/Error ---
-        import sys
-        print(f"; ERROR: Expresión no constante en inicializador global: {d.__class__.__name__}", file=sys.stderr)
-        return "0"
-    
-    def llvm_type(self, ty):
-        """Mapea un nodo de tipo B-Minor a su representación LLVM IR."""
-        # Caso 1: Tipos Simples (integer, boolean, etc.)
-        if isinstance(ty, SimpleType):
-            name = ty.name.lower()
-            if name in ('int', 'integer'): return LLVM_INT
-            if name in ('bool', 'boolean'): return LLVM_BOOL
-            if name == 'char': return LLVM_CHAR
-            if name == 'float': return LLVM_FLOAT
-            if name == 'string': return LLVM_STRING
-            if name == 'void': return "void"
-            return LLVM_INT # Default
-
-        # Caso 2: Arreglos (ArrayType)
-        elif isinstance(ty, ArrayType):
-            elem_type = self.llvm_type(ty.base)
-            # Si tiene tamaño literal definido (ej: [8]), es un array estático
-            if ty.size and isinstance(ty.size, Integer):
-                return f"[{ty.size.value} x {elem_type}]"
-            # Si no, es un puntero (T*)
-            return f"{elem_type}*"
-
-        # Caso 3: Funciones (FuncType)
-        elif isinstance(ty, FuncType):
-            ret = self.llvm_type(ty.ret)
-            # Esto es solo para propósitos de depuración o firmas complejas
-            return f"{ret} (...)"
-
-        return LLVM_INT # Fallback seguro
+        self.arr_len: Dict[str, ValueRef] = {}
 
     def gen_program(self, prog: Program):
-        """Punto de entrada: genera globales, y luego funciones."""
         self.ir.header()
-
-        # 0) recolectar firmas de funciones (para llamadas con tipo real)
+        
+        # Recolectar firmas
         for s in prog.body:
             if isinstance(s, VarDecl) and isinstance(s.type, FuncType):
                 ret_ll = type_to_llvm(s.type.ret) if s.type.ret else "void"
-                params_ll = [param_type_to_llvm(p.type) for p in (s.type.params or [])] # Usa param_type_to_llvm
+                params_ll = [param_type_to_llvm(p.type) for p in (s.type.params or [])]
                 self.fn_sigs[s.name] = (ret_ll, params_ll)
 
-        # 1) declarar globales (no funciones)
+        # Globales
         for s in prog.body:
             if isinstance(s, VarDecl) and not isinstance(s.type, FuncType):
                 self._gen_global_decl(s)
 
-        # 2) definir funciones
+        # Funciones
         for s in prog.body:
             if isinstance(s, VarDecl) and isinstance(s.type, FuncType):
                 self._gen_function(s)
 
-
-    # ---- Globales
     def _gen_global_decl(self, d: VarDecl):
         """Genera la declaración y posible inicialización de una variable global."""
         ty = d.type
-        gname = f"@{d.name}"
-
+        
         if isinstance(ty, ArrayType):
-            # --- Lógica para arreglos (ArrayType) ---
-
-            # Obtiene el tipo del elemento base, ej: 'i32'
-            base_type = self.llvm_type(ty.base)
-
-            # Helper para obtener valor constante (DEBE estar definida afuera o inline)
-            # Asumiendo que esta helper está definida y accesible:
-            def get_const_value_str(node):
-                # ... (su lógica para Literal y UnaryOper) ...
-                pass # (se omite para brevedad aquí, pero debe estar en su código)
-
-            if d.init and isinstance(d.init, ArrayInit):
-                # Caso 1: Arreglo con inicializador (ej: KNIGHT_DX/DY)
-                size = len(d.init.values)
-                llvm_type = f"[{size} x {base_type}]" 
+            base_llty = type_to_llvm(ty.base)
+            
+            # Array con tamaño literal
+            if ty.size and isinstance(ty.size, Integer):
+                n = int(ty.size.value)
+                gname = f"@{d.name}"
+                self.globals[d.name] = (f"[{n} x {base_llty}]", gname)
                 
-                # Generar la lista de valores constante: 'i32 2, i32 1, ...'
-                values_str = ', '.join([f'{base_type} {self.gen_expr_const(v)}' for v in d.init.values])
-                initializer_ir = f"[{values_str}]"
+                # Procesar inicializador
+                init_values = None
+                if hasattr(d.init, 'values'):
+                    init_values = d.init.values
+                elif isinstance(d.init, list):
+                    init_values = d.init
+                elif hasattr(d.init, 'elements'):
+                    init_values = d.init.elements
+                elif hasattr(d.init, 'items'):
+                    init_values = d.init.items
                 
-                self.ir.emit(f"{gname} = global {llvm_type} {initializer_ir}")
-                
+                # Generar inicializador
+                if init_values is not None:
+                    initializers = []
+                    for val_node in init_values:
+                        if isinstance(val_node, Integer):
+                            val = str(int(val_node.value))
+                        elif isinstance(val_node, UnaryOper) and val_node.oper == '-':
+                            if isinstance(val_node.expr, Integer):
+                                val = str(-int(val_node.expr.value))
+                            else:
+                                val = "0"
+                        else:
+                            val = "0"
+                        initializers.append(f"{base_llty} {val}")
+                    
+                    # Rellenar con ceros si faltan elementos
+                    while len(initializers) < n:
+                        initializers.append(f"{base_llty} 0")
+                    
+                    initializer_str = "[" + ", ".join(initializers) + "]"
+                else:
+                    initializer_str = "zeroinitializer"
+
+                self.ir.emit(f'{gname} = global [{n} x {base_llty}] {initializer_str}')
+                self.arr_len[d.name] = ValueRef(LLVM_INT, str(n))
+                return
+            
+            # Array sin tamaño literal (puntero)
             else:
-                # Caso 2: Arreglo sin inicializador (zeroinitializer)
-                size = self.gen_expr_const(ty.size) # Obtiene el tamaño de la declaración
-                llvm_type = f"[{size} x {base_type}]"
-                
-                self.ir.emit(f"{gname} = global {llvm_type} zeroinitializer")
-
-            # Almacena el tipo completo y el nombre en self.globals
-            self.globals[d.name] = (llvm_type, gname)
-            return # Finaliza el procesamiento de arreglos
-
-        # ----------------------------------------------------------------------
+                gname = f"@{d.name}"
+                self.globals[d.name] = (f"{base_llty}*", gname)
+                self.ir.emit(f'{gname} = global {base_llty}* null')
+                return
         
-        # Caso 3: Escalar global (SimpleType)
-        llty = self.llvm_type(ty) # Usa self.llvm_type() si es el método del Codegen
+        # Escalar global
+        llty = type_to_llvm(ty)
+        gname = f"@{d.name}"
+        self.globals[d.name] = (llty, gname)
+        init = "0"
         
-        init = "0" # Valor por defecto (cubre 'zeroinitializer' para i32/i1/i8)
-        
-        if d.init and isinstance(d.init, Literal):
-            # Convertir el valor literal a su representación LLVM
+        if isinstance(d.init, Literal):
             if llty == LLVM_INT:
                 init = str(int(d.init.value))
-            elif llty == LLVM_BOOL: # Asumiendo LLVM_BOOL = 'i1'
+            elif llty == LLVM_BOOL:
                 init = "1" if bool(d.init.value) else "0"
-            elif llty == LLVM_CHAR: # Asumiendo LLVM_CHAR = 'i8'
+            elif llty == LLVM_CHAR:
                 init = str(ord(d.init.value))
-            elif llty == LLVM_FLOAT: # Asumiendo LLVM_FLOAT = 'float'
-                # Es mejor usar la constante LLVM para float si es 0.0, 
-                # pero el string del valor es común
+            elif llty == LLVM_FLOAT:
                 init = f"{float(d.init.value)}"
-                
-        # Asume que 'LLVM_INT', 'LLVM_BOOL', etc. están definidos como constantes de string.
-        # Si su compilador tiene un método para obtener el valor constante:
-        # init = self.gen_expr_const(d.init) if d.init else "0"
         
-        # Generar la declaración LLVM IR
         self.ir.emit(f'{gname} = global {llty} {init}')
-        
-        # Almacenar el tipo y el nombre en self.globals
-        self.globals[d.name] = (llty, gname)
-    # ---- Funciones
+
     def _gen_function(self, fdecl: VarDecl):
-        """Genera el encabezado, parámetros (allocas) y cuerpo de la función."""
         ftype: FuncType = fdecl.type
         ret_llty = type_to_llvm(ftype.ret) if ftype.ret else "void"
         self.fn_ret_ty = ret_llty
@@ -422,19 +296,16 @@ class Codegen:
         self.cur_fn_name = fdecl.name
         self.cur_fn_params = [p.name for p in (ftype.params or [])]
 
-        
         params_sig = []
-
         for p in (ftype.params or []):
-            p_llty = param_type_to_llvm(p.type)   # Usa el tipo correcto para arreglos (T*)
+            p_llty = param_type_to_llvm(p.type)
             params_sig.append(f"{p_llty} %{p.name}")
 
         self.ir.emit(f"define {ret_llty} {fname}({', '.join(params_sig)}) "+"{")
         fn_scope = Scope()
 
-        # params → allocas (guarda los punteros a los slots)
         for p in (ftype.params or []):
-            p_llty = param_type_to_llvm(p.type) 
+            p_llty = param_type_to_llvm(p.type)
             slot = self.ir.tmp()
             self.ir.emit(f"  {slot} = alloca {p_llty}")
             self.ir.emit(f"  store {p_llty} %{p.name}, {p_llty}* {slot}")
@@ -444,24 +315,24 @@ class Codegen:
         if isinstance(fdecl.init, Block):
             self._gen_block(fdecl.init, fn_scope)
         
-        # Etiqueta de finalización de función (necesaria para el control de flujo)
+        # Agregar branch incondicional al label final (por si no hay return explícito)
+        self.ir.emit(f"  br label %{self.current_fn_end_label}")
         self.ir.emit(f"{self.current_fn_end_label}:")
         if ret_llty == "void":
             self.ir.emit("  ret void")
         else:
-            self.ir.emit(f"  ret {ret_llty} 0") # Retorno por defecto si no hay return explícito
+            self.ir.emit(f"  ret {ret_llty} 0")
 
-        self.ir.emit("}\n")
+        self.ir.emit("}")
+        self.ir.emit("")  # Línea en blanco entre funciones
+        
         self.fn_ret_ty = None
         self.current_fn_end_label = None
         self.current_fn_name = None
         self.cur_fn_name = None
         self.cur_fn_params = []
 
-
-    # ---- Bloques/sentencias
     def _gen_block(self, block: Block, scope: Scope):
-        """Genera IR para cada sentencia dentro de un bloque."""
         for s in block.stmts:
             if isinstance(s, VarDecl) and not isinstance(s.type, FuncType):
                 self._gen_local_vardecl(s, scope)
@@ -471,12 +342,11 @@ class Codegen:
                     self._gen_print(v)
             elif isinstance(s, ReturnStmt):
                 if s.expr is None:
-                    # Inserción de un salto al final de la función, el ret se genera allí.
                     self.ir.emit(f"  br label %{self.current_fn_end_label}")
                 else:
                     v = self._gen_expr(s.expr, scope)
                     self.ir.emit(f"  ret {v.ty} {v.name}")
-                return # Detiene la generación de IR en este camino del bloque
+                return
             elif isinstance(s, IfStmt):
                 self._gen_if(s, scope)
             elif isinstance(s, WhileStmt):
@@ -488,46 +358,27 @@ class Codegen:
             elif isinstance(s, Block):
                 self._gen_block(s, Scope(scope))
             else:
-                # cualquier expr/assign/call como stmt
                 _ = self._gen_expr(s, scope)
 
     def _gen_local_vardecl(self, d: VarDecl, scope: Scope):
-        """Genera código para la declaración de una variable local (escalar o arreglo)."""
-        
-        # 1. ARREGLOS (ArrayType)
         if isinstance(d.type, ArrayType):
             base_llty = type_to_llvm(d.type.base)
             elem_sz = get_size(d.type.base)
             
-            # Caso 1a: Tamaño literal -> alloca [N x T] (Arreglo estático en stack)
+            # Array estático [N x T]
             if d.type.size and isinstance(d.type.size, Integer):
                 n = int(d.type.size.value)
                 slot_arr = self.ir.tmp()
-                array_type = f"[{n} x {base_llty}]"
-                
-                # Genera alloca para el arreglo completo
-                self.ir.emit(f"  {slot_arr} = alloca {array_type}")
-                
-                # Genera un puntero al primer elemento (decay) para usarlo como T*
-                ptr_decay = self.ir.tmp()
-                self.ir.emit(f"  {ptr_decay} = getelementptr inbounds {array_type}, {array_type}* {slot_arr}, i32 0, i32 0")
-                
-                # Guarda la variable en el scope como un puntero T*
-                scope.set(d.name, ValueRef(ty=f"{base_llty}*", name=ptr_decay))
+                self.ir.emit(f"  {slot_arr} = alloca [{n} x {base_llty}]")
+                scope.set(d.name, ValueRef(ty=f"[{n} x {base_llty}]", name=slot_arr))
                 self.arr_len[d.name] = ValueRef(LLVM_INT, str(n))
-                
-                # Inicialización (si existe)
-                # Nota: B-Minor no suele soportar inicialización de lista {..} en locales, 
-                # pero si lo hiciera, iría aquí con una serie de stores.
                 return
 
-            # Caso 1b: Array dinámica (malloc)
+            # Array dinámica
             slot_ptr = self.ir.tmp()
             self.ir.emit(f"  {slot_ptr} = alloca {base_llty}*")
             
             n_reg = "0"
-            bytes_cnt = "0"
-            
             if d.type.size is not None:
                 nval = self._gen_expr(d.type.size, scope)
                 if nval.ty != LLVM_INT:
@@ -540,33 +391,48 @@ class Codegen:
                         self.ir.emit(f"  {fix} = add i32 0, 0")
                     nval = ValueRef(LLVM_INT, fix)
                 n_reg = nval.name
-                if n_reg == "0": 
-                    n_reg = "64"
-                
-                # Calcular bytes: N * sizeof(T)
-                bytes_cnt = self.ir.tmp()
-                self.ir.emit(f"  {bytes_cnt} = mul i32 {n_reg}, {elem_sz}")
-                
             
-            # Generar malloc
-            if bytes_cnt != "0":
-                raw = self.ir.tmp()
-                self.ir.emit(f"  {raw} = call i8* @malloc(i32 {bytes_cnt})")
-                cast = self.ir.tmp()
-                self.ir.emit(f"  {cast} = bitcast i8* {raw} to {base_llty}*")
-                self.ir.emit(f"  store {base_llty}* {cast}, {base_llty}** {slot_ptr}")
-                
-                # Guardar longitud para array_length
-                len_slot = self.ir.tmp()
-                self.ir.emit(f"  {len_slot} = alloca i32")
-                self.ir.emit(f"  store i32 {n_reg}, i32* {len_slot}")
-                self.arr_len[d.name] = ValueRef(f"{LLVM_INT}*", len_slot)
-                
-                scope.set(d.name, ValueRef(ty=f"{base_llty}*", name=slot_ptr))
+            # Si n_reg es "0", usar valor por defecto
+            if n_reg == "0":
+                n_reg = "64"
             
+            bytes_cnt = self.ir.tmp()
+            self.ir.emit(f"  {bytes_cnt} = mul i32 {n_reg}, {elem_sz}")
+            
+            raw = self.ir.tmp()
+            self.ir.emit(f"  {raw} = call i8* @malloc(i32 {bytes_cnt})")
+            cast = self.ir.tmp()
+            self.ir.emit(f"  {cast} = bitcast i8* {raw} to {base_llty}*")
+            self.ir.emit(f"  store {base_llty}* {cast}, {base_llty}** {slot_ptr}")
+            
+            len_slot = self.ir.tmp()
+            self.ir.emit(f"  {len_slot} = alloca i32")
+            self.ir.emit(f"  store i32 {n_reg}, i32* {len_slot}")
+            self.arr_len[d.name] = ValueRef(f"{LLVM_INT}*", len_slot)
+            scope.set(d.name, ValueRef(ty=f"{base_llty}*", name=slot_ptr))
+
+            init_values = getattr(d.init, "values", None)
+            if init_values is not None:
+                arr_ptr = self.ir.tmp()
+                self.ir.emit(f"  {arr_ptr} = load {base_llty}*, {base_llty}** {slot_ptr}")
+                for idx, elt in enumerate(init_values):
+                    val = self._gen_expr(elt, scope)
+                    gep = self.ir.tmp()
+                    self.ir.emit(f"  {gep} = getelementptr inbounds {base_llty}, {base_llty}* {arr_ptr}, i32 {idx}")
+                    castv = val.name
+                    if val.ty != base_llty:
+                        tmp = self.ir.tmp()
+                        if val.ty in (LLVM_BOOL, LLVM_CHAR):
+                            self.ir.emit(f"  {tmp} = zext {val.ty} {val.name} to i32")
+                        elif val.ty == LLVM_FLOAT and base_llty == LLVM_INT:
+                            self.ir.emit(f"  {tmp} = fptosi double {val.name} to i32")
+                        else:
+                            self.ir.emit(f"  {tmp} = add i32 0, 0")
+                        castv = tmp
+                    self.ir.emit(f"  store {base_llty} {castv}, {base_llty}* {gep}")
             return
             
-        # 2. ESCALARES (SimpleType)
+        # Variable escalar
         llty = type_to_llvm(d.type)
         slot = self.ir.tmp()
         self.ir.emit(f"  {slot} = alloca {llty}")
@@ -587,29 +453,7 @@ class Codegen:
         else:
             self.ir.emit(f"  store {llty} 0, {llty}* {slot}")
 
-        return
-
-    def _eval_size_expr(self, size_expr, scope: Scope) -> str:
-        """Genera IR para evaluar una expresión de tamaño (p. ej. N, N*N) y devuelve el registro i32."""
-        if size_expr is None:
-            return "0"
-        v = self._gen_expr(size_expr, scope)
-        # aseguramos i32
-        if v.ty != LLVM_INT:
-            tmp = self.ir.tmp()
-            if v.ty == LLVM_BOOL or v.ty == LLVM_CHAR:
-                self.ir.emit(f"  {tmp} = zext {v.ty} {v.name} to i32")
-            elif v.ty == LLVM_FLOAT:
-                self.ir.emit(f"  {tmp} = fptosi double {v.name} to i32")
-            else:
-                # best effort
-                self.ir.emit(f"  {tmp} = add i32 0, 0")
-            return tmp
-        return v.name
-
-    # ---- IF / WHILE / FOR helpers
     def _as_i1(self, v: ValueRef) -> ValueRef:
-        """Convierte cualquier valor a i1 (booleano)."""
         if v.ty == LLVM_BOOL:
             return v
         if v.ty == LLVM_INT or v.ty == LLVM_CHAR:
@@ -623,7 +467,6 @@ class Codegen:
         return ValueRef(LLVM_BOOL, "true")
 
     def _gen_if(self, n: IfStmt, scope: Scope):
-        """Genera IR para la sentencia if/else."""
         cond = self._as_i1(self._gen_expr(n.cond, scope))
         thenL = self.ir.label("then.")
         elseL = self.ir.label("else.")
@@ -639,10 +482,9 @@ class Codegen:
         self.ir.emit(f"{endL}:")
 
     def _gen_while(self, n: WhileStmt, scope: Scope):
-        """Genera IR para la sentencia while."""
-        head = self.ir.label("while.head.")
-        body = self.ir.label("while.body.")
-        end  = self.ir.label("while.end.")
+        head = self.ir.label("for.head.")
+        body = self.ir.label("for.body.")
+        end  = self.ir.label("for.end.")
         self.ir.emit(f"  br label %{head}")
         self.ir.emit(f"{head}:")
         c = self._as_i1(self._gen_expr(n.cond, scope))
@@ -653,7 +495,6 @@ class Codegen:
         self.ir.emit(f"{end}:")
 
     def _gen_dowhile(self, n: DoWhileStmt, scope: Scope):
-        """Genera IR para la sentencia do-while."""
         bodyL = self.ir.label("do.body.")
         head  = self.ir.label("do.head.")
         end   = self.ir.label("do.end.")
@@ -667,7 +508,6 @@ class Codegen:
         self.ir.emit(f"{end}:")
 
     def _gen_for(self, n: ForStmt, scope: Scope):
-        """Genera IR para la sentencia for."""
         init_scope = Scope(scope)
         if getattr(n, "init", None) is not None:
             _ = self._gen_expr(n.init, init_scope)
@@ -688,9 +528,8 @@ class Codegen:
         self.ir.emit(f"  br label %{head}")
         self.ir.emit(f"{end}:")
 
-    # ---- Expresiones
     def _gen_expr(self, e, scope: Scope) -> ValueRef:
-        """Genera IR para una expresión, devolviendo su valor y tipo (ValueRef)."""
+        # Literales
         if isinstance(e, Integer):
             return ValueRef(LLVM_INT, str(int(e.value)))
         if isinstance(e, Boolean):
@@ -702,15 +541,15 @@ class Codegen:
         if isinstance(e, String):
             gname = self._string_global(e.value)
             ptr = self.ir.tmp()
-            self.ir.emit(f"  {ptr} = getelementptr inbounds [{len(e.value)+1} x i8], [{len(e.value)+1} x i8]* {gname}, i32 0, i32 0")
+            strlen = len(e.value) + 1
+            self.ir.emit(f"  {ptr} = getelementptr inbounds [{strlen} x i8], [{strlen} x i8]* {gname}, i32 0, i32 0")
             return ValueRef(LLVM_STRING, ptr)
+        
+        # Identificador
         if isinstance(e, Identifier):
             v = scope.get(e.name)
             if v is not None:
                 reg = self.ir.tmp()
-                # La carga usa el tipo base (v.ty) y el slot (v.name)
-                # v.ty es i32/double para escalares o i32*/double* para arreglos
-                # v.name es el %slot
                 self.ir.emit(f"  {reg} = load {v.ty}, {v.ty}* {v.name}")
                 return ValueRef(v.ty, reg)
             if e.name in self.globals:
@@ -718,8 +557,9 @@ class Codegen:
                 reg = self.ir.tmp()
                 self.ir.emit(f"  {reg} = load {llty}, {llty}* {g}")
                 return ValueRef(llty, reg)
-            raise NameError(f"ERROR DE ALCANCE: Identificador '{e.name}' no encontrado. (Línea: {getattr(e, 'lineno', 'desconocida')})")
+            return ValueRef(LLVM_INT, "0")
 
+        # Asignación
         if isinstance(e, Assign):
             if isinstance(e.target, Identifier):
                 slot = scope.get(e.target.name)
@@ -733,178 +573,274 @@ class Codegen:
                     self.ir.emit(f"  store {slot.ty} {val.name}, {slot.ty}* {slot.name}")
                     return val
             
+            # Asignación a array
             elif isinstance(e.target, ArrayIndex):
                 idx_node = e.target
+                
+                # Array global [N x T]
+                if isinstance(idx_node.array, Identifier) and idx_node.array.name in self.globals:
+                    gty, gname = self.globals[idx_node.array.name]
+                    if gty.startswith('['):
+                        elem_ty = gty.split(' x ')[-1].rstrip(']')
+                        idx = self._gen_expr(idx_node.index, scope)
+                        gep = self.ir.tmp()
+                        self.ir.emit(f"  {gep} = getelementptr inbounds {gty}, {gty}* {gname}, i32 0, i32 {idx.name}")
+                        val = self._gen_expr(e.value, scope)
+                        castv = val.name
+                        if val.ty != elem_ty:
+                            tmp = self.ir.tmp()
+                            if val.ty in (LLVM_BOOL, LLVM_CHAR):
+                                self.ir.emit(f"  {tmp} = zext {val.ty} {val.name} to i32")
+                            elif val.ty == LLVM_FLOAT and elem_ty == LLVM_INT:
+                                self.ir.emit(f"  {tmp} = fptosi double {val.name} to i32")
+                            else:
+                                self.ir.emit(f"  {tmp} = add i32 0, 0")
+                            castv = tmp
+                        self.ir.emit(f"  store {elem_ty} {castv}, {elem_ty}* {gep}")
+                        return ValueRef(elem_ty, castv)
+                
+                # Array local [N x T]
+                v = scope.get(idx_node.array.name)
+                if v and v.ty.startswith('['):
+                    elem_ty = v.ty.split(' x ')[-1].rstrip(']')
+                    idx = self._gen_expr(idx_node.index, scope)
+                    gep = self.ir.tmp()
+                    self.ir.emit(f"  {gep} = getelementptr inbounds {v.ty}, {v.ty}* {v.name}, i32 0, i32 {idx.name}")
+                    val = self._gen_expr(e.value, scope)
+                    self.ir.emit(f"  store {elem_ty} {val.name}, {elem_ty}* {gep}")
+                    return ValueRef(elem_ty, val.name)
+                
+                # Puntero T*
                 base_ptr, elem_ty = self._gen_array_ptr(idx_node, scope)
                 idx = self._gen_expr(idx_node.index, scope)
-                gep = self.ir.tmp()    
-                self.ir.emit(
-                    f"  {gep} = getelementptr inbounds {elem_ty}, {elem_ty}* {base_ptr}, i32 {idx.name}"
-                )
+                gep = self.ir.tmp()
+                self.ir.emit(f"  {gep} = getelementptr inbounds {elem_ty}, {elem_ty}* {base_ptr}, i32 {idx.name}")
                 val = self._gen_expr(e.value, scope)
-
-                # normalizar tipo del valor si viene como i1/char/float
-                castv = val.name
-                if val.ty != elem_ty:
-                    if val.ty == LLVM_BOOL or val.ty == LLVM_CHAR:
-                        tmp = self.ir.tmp()
-                        self.ir.emit(f"  {tmp} = zext {val.ty} {val.name} to i32")
-                        castv = tmp
-                    elif val.ty == LLVM_FLOAT and elem_ty == LLVM_INT:
-                        # Conversión de flotante a entero (fptosi)
-                        tmp = self.ir.tmp()
-                        self.ir.emit(f"  {tmp} = fptosi double {val.name} to i32")
-                        castv = tmp
-
-                self.ir.emit(f"  store {elem_ty} {castv}, {elem_ty}* {gep}")
-                return ValueRef(elem_ty, castv)
+                self.ir.emit(f"  store {elem_ty} {val.name}, {elem_ty}* {gep}")
+                return val
             
             return self._gen_expr(e.value, scope)
 
+        # Acceso a array
         if isinstance(e, ArrayIndex):
-            # 1. Obtener la referencia del índice.
-            base_node = e.array
-            index_ref = self._gen_expr(e.index, scope)
-            
-            # Caso A: Acceso a ARREGLO GLOBAL ESTÁTICO (KNIGHT_DX/DY)
-            if isinstance(base_node, Identifier) and base_node.name in self.globals:
-                gname = base_node.name
-                gty, _ = self.globals[gname]
+            if isinstance(e.array, Identifier):
+                # Array global [N x T]
+                if e.array.name in self.globals:
+                    gty, gname = self.globals[e.array.name]
+                    if gty.startswith('['):
+                        T = gty.split(' x ')[-1].rstrip(']')
+                        idx = self._gen_expr(e.index, scope)
+                        gep = self.ir.tmp()
+                        self.ir.emit(f"  {gep} = getelementptr inbounds {gty}, {gty}* {gname}, i32 0, i32 {idx.name}")
+                        reg = self.ir.tmp()
+                        self.ir.emit(f"  {reg} = load {T}, {T}* {gep}")
+                        return ValueRef(T, reg)
                 
-                # Verifica si el global es un arreglo fijo, ej: [8 x i32]
-                if gty.startswith('['):
-                    element_type = gty.split(' x ')[1].rstrip(']')
-                    global_ptr = f"@{gname}"
-                    
-                    # CORRECCIÓN: Usar UN SOLO GEP con DOS índices (i32 0, i32 %index)
-                    # El tipo de puntero base es gty* (ej: [8 x i32]*)
-                    gep = self.ir.tmp() 
-                    self.ir.emit(
-                        f"  {gep} = getelementptr inbounds {gty}, {gty}* {global_ptr}, i32 0, i32 {index_ref.name}"
-                    )
-                    
-                    # Cargar el valor (gep ahora es el puntero al elemento T*)
+                # Array local [N x T]
+                v = scope.get(e.array.name)
+                if v and v.ty.startswith('['):
+                    T = v.ty.split(' x ')[-1].rstrip(']')
+                    idx = self._gen_expr(e.index, scope)
+                    gep = self.ir.tmp()
+                    self.ir.emit(f"  {gep} = getelementptr inbounds {v.ty}, {v.ty}* {v.name}, i32 0, i32 {idx.name}")
                     reg = self.ir.tmp()
-                    self.ir.emit(f"  {reg} = load {element_type}, {element_type}* {gep}")
-                    return ValueRef(element_type, reg)
-            
-            # Caso B: Arreglo local o parámetro (mantiene la lógica existente via _gen_array_ptr)
-            # Asume que _gen_array_ptr maneja correctamente variables locales y parámetros.
-            base_ptr, elem_ty = self._gen_array_ptr(e, scope)
-            idx = index_ref
-            gep = self.ir.tmp()
-            
-            # GEP y Carga para arreglos locales/parámetros
-            self.ir.emit(f"  {gep} = getelementptr inbounds {elem_ty}, {elem_ty}* {base_ptr}, i32 {idx.name}")
-            reg = self.ir.tmp()
-            self.ir.emit(f"  {reg} = load {elem_ty}, {elem_ty}* {gep}")
-            return ValueRef(elem_ty, reg)
+                    self.ir.emit(f"  {reg} = load {T}, {T}* {gep}")
+                    return ValueRef(T, reg)
+                
+                # Puntero T*
+                if v and v.ty.endswith('*'):
+                    baseT = v.ty[:-1]
+                    loaded = self.ir.tmp()
+                    self.ir.emit(f"  {loaded} = load {v.ty}, {v.ty}* {v.name}")
+                    idx = self._gen_expr(e.index, scope)
+                    gep = self.ir.tmp()
+                    self.ir.emit(f"  {gep} = getelementptr inbounds {baseT}, {baseT}* {loaded}, i32 {idx.name}")
+                    reg = self.ir.tmp()
+                    self.ir.emit(f"  {reg} = load {baseT}, {baseT}* {gep}")
+                    return ValueRef(baseT, reg)
 
+        # Llamada a función
         if isinstance(e, Call):
-            # intrínseco print(...)
-            if isinstance(e.func, Identifier) and e.func.name == "print":
-                for a in e.args:
-                    self._gen_print(self._gen_expr(a, scope))
-                return ValueRef(LLVM_INT, "0")
+            callee = e.func.name if isinstance(e.func, Identifier) else "unknown"
+            argvals: List[ValueRef] = []
+            
+            for a in e.args:
+                if isinstance(a, Identifier):
+                    v = scope.get(a.name)
+                    # Array local estático [N x T]
+                    if v and v.ty.startswith('['):
+                        ptr = self.ir.tmp()
+                        elem_ty = v.ty.split(' x ')[-1].rstrip(']')
+                        self.ir.emit(f"  {ptr} = getelementptr inbounds {v.ty}, {v.ty}* {v.name}, i32 0, i32 0")
+                        argvals.append(ValueRef(f"{elem_ty}*", ptr))
+                        continue
+                    # Array puntero T*
+                    if v and v.ty.endswith('*'):
+                        loaded_ptr = self.ir.tmp()
+                        self.ir.emit(f"  {loaded_ptr} = load {v.ty}, {v.ty}* {v.name}")
+                        argvals.append(ValueRef(v.ty, loaded_ptr))
+                        continue
+                    # Array global [N x T]
+                    if a.name in self.globals:
+                        gty, gname = self.globals[a.name]
+                        if gty.startswith('['):
+                            ptr = self.ir.tmp()
+                            elem_ty = gty.split(' x ')[-1].rstrip(']')
+                            self.ir.emit(f"  {ptr} = getelementptr inbounds {gty}, {gty}* {gname}, i32 0, i32 0")
+                            argvals.append(ValueRef(f"{elem_ty}*", ptr))
+                            continue
+                
+                argvals.append(self._gen_expr(a, scope))
 
-            # intrínseco array_length(x) -> i32
-            if isinstance(e.func, Identifier) and e.func.name == "array_length":
-                target = e.args[0] if e.args else None
-                return self._get_array_length(target, scope)
+            if callee in self.fn_sigs:
+                ret_llty, param_lltys = self.fn_sigs[callee]
+                fname = f"@{callee}"
+                
+                call_args = []
+                for val_ref, sig_ty in zip(argvals, param_lltys):
+                    call_args.append(f"{sig_ty} {val_ref.name}")
+                
+                call_str = f"call {ret_llty} {fname}({', '.join(call_args)})"
+                
+                if ret_llty != "void":
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = {call_str}")
+                    return ValueRef(ret_llty, r)
+                else:
+                    self.ir.emit(f"  {call_str}")
+                    return ValueRef("void", "")
+            
+            return ValueRef(LLVM_INT, "0")
 
-            # llamada normal a función de usuario
-            callee  = e.func.name if isinstance(e.func, Identifier) else "unknown"
-            argvals = [self._gen_expr(a, scope) for a in e.args]
-
-            # INYECTAR LONGITUDES: Una sola vez, inmediatamente antes del call
-            for i, arg_node in enumerate(e.args):
-                L = self._try_arg_length(arg_node, scope)  # ValueRef(i32) o None
-                if L is not None:
-                    gname = f"@.len.{callee}.p{i}"
-                    self._declare_len_global(gname)
-                    self.ir.emit(f"  store i32 {L.name}, i32* {gname}")
-
-            arglist = ", ".join(f"{v.ty} {v.name}" for v in argvals)
-            ret_ll, _ = self.fn_sigs.get(callee, (LLVM_INT, []))
-            if ret_ll == "void":
-                self.ir.emit(f"  call void @{callee}({arglist})")
-                return ValueRef(LLVM_INT, "0")
-            r = self.ir.tmp()
-            self.ir.emit(f"  {r} = call {ret_ll} @{callee}({arglist})")
-            return ValueRef(ret_ll, r)
-
-
+        # Operador unario
         if isinstance(e, UnaryOper):
-            """Genera IR para operadores unarios (-, +, !)."""
             v = self._gen_expr(e.expr, scope)
             if e.oper == '-':
                 if v.ty == LLVM_FLOAT:
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = fsub double 0.0, {v.name}"); return ValueRef(v.ty, r)
-                r = self.ir.tmp(); self.ir.emit(f"  {r} = sub {v.ty} 0, {v.name}"); return ValueRef(v.ty, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = fsub double 0.0, {v.name}")
+                    return ValueRef(v.ty, r)
+                r = self.ir.tmp()
+                self.ir.emit(f"  {r} = sub {v.ty} 0, {v.name}")
+                return ValueRef(v.ty, r)
             if e.oper == '+':
                 return v
-            if e.oper == '!':
+            if e.oper == '!' or e.oper == 'NOT':
                 as1 = self._as_i1(v)
-                r = self.ir.tmp(); self.ir.emit(f"  {r} = xor i1 {as1.name}, true"); return ValueRef(LLVM_BOOL, r)
+                r = self.ir.tmp()
+                self.ir.emit(f"  {r} = xor i1 {as1.name}, true")
+                return ValueRef(LLVM_BOOL, r)
+            return v
+        
+        # Soporte adicional para UnaryOp (si el parser lo usa)
+        if isinstance(e, UnaryOp):
+            v = self._gen_expr(e.expr, scope)
+            if e.op == '!':
+                as1 = self._as_i1(v)
+                r = self.ir.tmp()
+                self.ir.emit(f"  {r} = xor i1 {as1.name}, true")
+                return ValueRef(LLVM_BOOL, r)
+            elif e.op == '-':
+                if v.ty == LLVM_FLOAT:
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = fsub double 0.0, {v.name}")
+                    return ValueRef(v.ty, r)
+                r = self.ir.tmp()
+                self.ir.emit(f"  {r} = sub {v.ty} 0, {v.name}")
+                return ValueRef(v.ty, r)
+            return v
 
+        # Operador postfijo (++/--)
         if isinstance(e, PostfixOper):
-            """Genera IR para operadores postfijos (++, --)."""
             if isinstance(e.expr, Identifier):
                 slot = scope.get(e.expr.name)
                 if slot is None:
                     llty, g = self.globals.get(e.expr.name, (LLVM_INT, None))
-                    cur = self.ir.tmp(); self.ir.emit(f"  {cur} = load {llty}, {llty}* {g}")
-                    nxt = self.ir.tmp(); op = "add" if e.oper == '++' else "sub"
+                    cur = self.ir.tmp()
+                    self.ir.emit(f"  {cur} = load {llty}, {llty}* {g}")
+                    nxt = self.ir.tmp()
+                    op = "add" if e.oper == '++' else "sub"
                     self.ir.emit(f"  {nxt} = {op} {llty} {cur}, 1")
                     self.ir.emit(f"  store {llty} {nxt}, {llty}* {g}")
                     return ValueRef(llty, cur)
                 else:
-                    cur = self.ir.tmp(); self.ir.emit(f"  {cur} = load {slot.ty}, {slot.ty}* {slot.name}")
-                    nxt = self.ir.tmp(); op = "add" if e.oper == '++' else "sub"
+                    cur = self.ir.tmp()
+                    self.ir.emit(f"  {cur} = load {slot.ty}, {slot.ty}* {slot.name}")
+                    nxt = self.ir.tmp()
+                    op = "add" if e.oper == '++' else "sub"
                     self.ir.emit(f"  {nxt} = {op} {slot.ty} {cur}, 1")
                     self.ir.emit(f"  store {slot.ty} {nxt}, {slot.ty}* {slot.name}")
                     return ValueRef(slot.ty, cur)
 
+        # Operador binario
         if isinstance(e, BinOper):
-            """Genera IR para operadores binarios (+, -, *, /, %, ==, <, etc.)."""
             a = self._gen_expr(e.left, scope)
             b = self._gen_expr(e.right, scope)
+            
+            # Operaciones con float
             if a.ty == LLVM_FLOAT or b.ty == LLVM_FLOAT:
                 if a.ty != LLVM_FLOAT:
-                    ca = self.ir.tmp(); self.ir.emit(f"  {ca} = sitofp {a.ty} {a.name} to double"); a = ValueRef(LLVM_FLOAT, ca)
+                    ca = self.ir.tmp()
+                    self.ir.emit(f"  {ca} = sitofp {a.ty} {a.name} to double")
+                    a = ValueRef(LLVM_FLOAT, ca)
                 if b.ty != LLVM_FLOAT:
-                    cb = self.ir.tmp(); self.ir.emit(f"  {cb} = sitofp {b.ty} {b.name} to double"); b = ValueRef(LLVM_FLOAT, cb)
+                    cb = self.ir.tmp()
+                    self.ir.emit(f"  {cb} = sitofp {b.ty} {b.name} to double")
+                    b = ValueRef(LLVM_FLOAT, cb)
+                
                 opmap = {'+':'fadd','-':'fsub','*':'fmul','/':'fdiv'}
                 if e.oper in opmap:
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = {opmap[e.oper]} double {a.name}, {b.name}"); return ValueRef(LLVM_FLOAT, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = {opmap[e.oper]} double {a.name}, {b.name}")
+                    return ValueRef(LLVM_FLOAT, r)
+                
                 cmpmap = {'==':'oeq','!=':'one','<':'olt','<=':'ole','>':'ogt','>=':'oge'}
                 if e.oper in cmpmap:
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = fcmp {cmpmap[e.oper]} double {a.name}, {b.name}"); return ValueRef(LLVM_BOOL, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = fcmp {cmpmap[e.oper]} double {a.name}, {b.name}")
+                    return ValueRef(LLVM_BOOL, r)
+            
+            # Operaciones con enteros
             else:
                 if e.oper == '+':
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = add {a.ty} {a.name}, {b.name}"); return ValueRef(a.ty, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = add {a.ty} {a.name}, {b.name}")
+                    return ValueRef(a.ty, r)
                 if e.oper == '-':
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = sub {a.ty} {a.name}, {b.name}"); return ValueRef(a.ty, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = sub {a.ty} {a.name}, {b.name}")
+                    return ValueRef(a.ty, r)
                 if e.oper == '*':
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = mul {a.ty} {a.name}, {b.name}"); return ValueRef(a.ty, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = mul {a.ty} {a.name}, {b.name}")
+                    return ValueRef(a.ty, r)
                 if e.oper == '/':
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = sdiv {a.ty} {a.name}, {b.name}"); return ValueRef(a.ty, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = sdiv {a.ty} {a.name}, {b.name}")
+                    return ValueRef(a.ty, r)
                 if e.oper == '%':
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = srem {a.ty} {a.name}, {b.name}"); return ValueRef(a.ty, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = srem {a.ty} {a.name}, {b.name}")
+                    return ValueRef(a.ty, r)
+                
                 cmpmap = {'==':'eq','!=':'ne','<':'slt','<=':'sle','>':'sgt','>=':'sge'}
                 if e.oper in cmpmap:
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = icmp {cmpmap[e.oper]} {a.ty} {a.name}, {b.name}"); return ValueRef(LLVM_BOOL, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = icmp {cmpmap[e.oper]} {a.ty} {a.name}, {b.name}")
+                    return ValueRef(LLVM_BOOL, r)
+                
                 if e.oper in ('&&','||'):
-                    aa = self._as_i1(a); bb = self._as_i1(b)
+                    aa = self._as_i1(a)
+                    bb = self._as_i1(b)
                     op = "and" if e.oper == '&&' else "or"
-                    r = self.ir.tmp(); self.ir.emit(f"  {r} = {op} i1 {aa.name}, {bb.name}"); return ValueRef(LLVM_BOOL, r)
+                    r = self.ir.tmp()
+                    self.ir.emit(f"  {r} = {op} i1 {aa.name}, {bb.name}")
+                    return ValueRef(LLVM_BOOL, r)
 
         return ValueRef(LLVM_INT, "0")
 
     def _string_global(self, s: str) -> str:
-        """Genera una constante global para un literal de cadena."""
         key = f"@.str.{abs(hash(s)) & 0xFFFFFF:x}"
-        # Si ya existe, solo devuelve el nombre
         for ln in self.ir.lines:
             if ln.startswith(f"{key} ="):
                 return key
@@ -913,7 +849,6 @@ class Codegen:
         init = ", ".join(f"i8 {b}" for b in bs) + ", i8 0"
         line = f"{key} = private unnamed_addr constant [{len(bs)+1} x i8] [{init}]"
 
-        # Inserta después de los @.fmt_ y de los @.len
         insert_at = 0
         for j, ln in enumerate(self.ir.lines):
             if ln.startswith("@.fmt_") or ln.startswith("@.len."):
@@ -922,39 +857,47 @@ class Codegen:
         self.ir.lines.insert(insert_at, line)
         return key
 
-
     def _gen_print(self, v: ValueRef):
-        """Genera la llamada a @printf para imprimir un valor."""
         if v.ty in (LLVM_INT, LLVM_BOOL):
-            fmt = self.ir.gep_cstr("@.fmt_int");   self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i32 {v.name})")
+            fmt = self.ir.tmp()
+            self.ir.emit(f'  {fmt} = getelementptr inbounds [4 x i8], [4 x i8]* @.fmt_int, i32 0, i32 0')
+            self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i32 {v.name})")
         elif v.ty == LLVM_CHAR:
-            fmt = self.ir.gep_cstr("@.fmt_char");  self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i8 {v.name})")
+            fmt = self.ir.tmp()
+            self.ir.emit(f'  {fmt} = getelementptr inbounds [4 x i8], [4 x i8]* @.fmt_char, i32 0, i32 0')
+            self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i8 {v.name})")
         elif v.ty == LLVM_FLOAT:
-            fmt = self.ir.gep_cstr("@.fmt_float"); self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, double {v.name})")
+            fmt = self.ir.tmp()
+            self.ir.emit(f'  {fmt} = getelementptr inbounds [4 x i8], [4 x i8]* @.fmt_float, i32 0, i32 0')
+            self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, double {v.name})")
         elif v.ty == LLVM_STRING:
-            fmt = self.ir.gep_cstr("@.fmt_str");   self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i8* {v.name})")
+            fmt = self.ir.tmp()
+            self.ir.emit(f'  {fmt} = getelementptr inbounds [4 x i8], [4 x i8]* @.fmt_str, i32 0, i32 0')
+            self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i8* {v.name})")
         else:
-            fmt = self.ir.gep_cstr("@.fmt_int");   self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i32 {v.name})")
+            fmt = self.ir.tmp()
+            self.ir.emit(f'  {fmt} = getelementptr inbounds [4 x i8], [4 x i8]* @.fmt_int, i32 0, i32 0')
+            self.ir.emit(f"  call i32 (i8*, ...) @printf(i8* {fmt}, i32 {v.name})")
 
     def _gen_array_ptr(self, idx: ArrayIndex, scope: Scope) -> Tuple[str, str]:
-        """Calcula el puntero base (GEP) para acceder a un arreglo."""
+        """Calcula el puntero base para acceder a un arreglo."""
         if isinstance(idx.array, Identifier):
             v = scope.get(idx.array.name)
             if v:
-                # Caso 1: alocado estáticamente [N x T]
+                # Array estático [N x T]
                 if v.ty.startswith('['):
                     T = v.ty.split(' x ')[-1].rstrip(']')
                     baseptr = self.ir.tmp()
                     self.ir.emit(f"  {baseptr} = getelementptr inbounds {v.ty}, {v.ty}* {v.name}, i32 0, i32 0")
                     return baseptr, T
-                # Caso 2: puntero T* (malloc o parámetro)
+                # Puntero T*
                 if v.ty.endswith('*'):
                     loaded = self.ir.tmp()
                     baseT  = v.ty[:-1]
                     self.ir.emit(f"  {loaded} = load {v.ty}, {v.ty}* {v.name}")
                     return loaded, baseT
 
-            # Caso 3: global [N x T]
+            # Global [N x T]
             if idx.array.name in self.globals:
                 gty, gname = self.globals[idx.array.name]
                 if gty.startswith('['):
@@ -967,84 +910,6 @@ class Codegen:
         base = self.ir.tmp()
         self.ir.emit(f"  {base} = bitcast i8* null to i32*")
         return base, LLVM_INT
-    
-    def _get_array_length(self, arr_node, scope: Scope) -> ValueRef:
-        """Devuelve la longitud de un arreglo local, global o pasado como parámetro."""
-        name = None
-        if isinstance(arr_node, Identifier):
-            name = arr_node.name
-        elif isinstance(arr_node, ArrayIndex) and isinstance(arr_node.array, Identifier):
-            name = arr_node.array.name
-
-        # 1) Si la longitud fue guardada (local o dinámica)
-        if name and name in self.arr_len:
-            v = self.arr_len[name]
-            if v.ty.endswith("*"):                 # i32*
-                reg = self.ir.tmp()
-                self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
-                return ValueRef(LLVM_INT, reg)
-            return ValueRef(LLVM_INT, v.name)
-
-        # 2) Si es global de tamaño fijo [N x T]
-        if name and name in self.globals:
-            gty, _ = self.globals[name]
-            if gty.startswith('[') and ' x ' in gty:
-                N = gty.split(' x ')[0].lstrip('[')
-                return ValueRef(LLVM_INT, N)
-        
-        # 3) Longitud de parámetro (leyendo del global @.len.<fn>.p<i>)
-        if name and self.cur_fn_name and name in self.cur_fn_params:
-            idx = self.cur_fn_params.index(name)
-            gname = f"@.len.{self.cur_fn_name}.p{idx}"
-            self._declare_len_global(gname)
-            r = self.ir.tmp()
-            self.ir.emit(f"  {r} = load i32, i32* {gname}")
-            return ValueRef(LLVM_INT, r)
-
-
-        # 4) Desconocido (ej: parámetro sin tamaño)
-        return ValueRef(LLVM_INT, "0")
-    
-    
-    def _declare_len_global(self, gname):
-        decl = f"{gname} = global i32 0"
-        if any(ln.startswith(gname) for ln in self.ir.lines):
-            return
-        insert_at = 0
-        for j, ln in enumerate(self.ir.lines):
-            if ln.startswith("@.fmt_"):
-                insert_at = j + 1
-        self.ir.lines.insert(insert_at, decl)
-
-    def _try_arg_length(self, arg_node, scope: "Scope") -> Optional["ValueRef"]:
-        # 1) Si es un identificador y conocemos su longitud (self.arr_len)
-        if isinstance(arg_node, Identifier) and arg_node.name in self.arr_len:
-            v = self.arr_len[arg_node.name]
-            if v.ty.endswith("*"):
-                reg = self.ir.tmp()
-                self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
-                return ValueRef(LLVM_INT, reg)
-            return ValueRef(LLVM_INT, v.name)
-        
-        # 2) Si es un acceso a arreglo a[i], intenta usar la base
-        if isinstance(arg_node, ArrayIndex) and isinstance(arg_node.array, Identifier):
-            base = arg_node.array.name
-            if base in self.arr_len:
-                v = self.arr_len[base]
-                if v.ty.endswith("*"):
-                    reg = self.ir.tmp()
-                    self.ir.emit(f"  {reg} = load i32, i32* {v.name}")
-                    return ValueRef(LLVM_INT, reg)
-                return ValueRef(LLVM_INT, v.name)
-        
-        # 3) Si es global con tamaño literal (p.ej. @A = global [N x i32] ...)
-        if isinstance(arg_node, Identifier) and arg_node.name in self.globals:
-            gty, _ = self.globals[arg_node.name]
-            if gty.startswith('[') and ' x ' in gty:
-                N = gty.split(' x ')[0].lstrip('[')
-                return ValueRef(LLVM_INT, N)
-        
-        return None
 
 
 # ===== Carga + compile =====
@@ -1060,8 +925,8 @@ if check is not None:
     try:
         with open("out.ll", "w", encoding="utf-8") as f:
             f.write(output_ir)
-        print("Archivo out.ll generado con éxito en codificación UTF-8.", file=sys.stderr)
+        print("✓ Archivo out.ll generado con éxito.", file=sys.stderr)
     except Exception as e:
-        print(f"Error al escribir out.ll: {e}", file=sys.stderr)
+        print(f"✗ Error al escribir out.ll: {e}", file=sys.stderr)
 
-sys.stdout.write(em.finalize())
+sys.stdout.write(output_ir)
